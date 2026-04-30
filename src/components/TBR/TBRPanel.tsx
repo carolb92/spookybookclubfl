@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { SectionEmptyHint } from "@/components/common/SectionEmptyHint";
 import { Button } from "@/components/ui/button";
 import { AddBookModal } from "./AddBookModal";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { TBRList } from "./TBRList";
 import { useAuth } from "@/contexts/useAuth";
 import { cn } from "@/lib/utils";
 
 export function TBRPanel() {
 	const { session } = useAuth();
+	const [isEmpty, setIsEmpty] = useState(false);
 
 	const addButton = (
 		<Button
@@ -24,17 +27,22 @@ export function TBRPanel() {
 
 	return (
 		<div className="flex flex-col gap-5">
-			<div className="flex flex-col items-center justify-center gap-y-5">
-				<SectionEmptyHint>
-					The pile of dread grows ever taller.
-				</SectionEmptyHint>
-
+			<TBRList onEmpty={() => setIsEmpty(true)} />
+			<div className="flex justify-end">
 				{session ? (
 					<AddBookModal>{addButton}</AddBookModal>
 				) : (
 					<AuthModal>{addButton}</AuthModal>
 				)}
 			</div>
+
+			{isEmpty && (
+				<div className="flex flex-col items-center justify-center gap-y-5 pt-4">
+					<SectionEmptyHint>
+						The pile of dread grows ever taller.
+					</SectionEmptyHint>
+				</div>
+			)}
 		</div>
 	);
 }
