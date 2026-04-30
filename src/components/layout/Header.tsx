@@ -1,10 +1,12 @@
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/useAuth";
 
 interface HeaderProps {
 	className?: string;
 }
 
 export function Header({ className }: HeaderProps) {
+	const { session } = useAuth();
 	return (
 		<header
 			className={cn("relative w-full px-6 py-5 md:px-10 md:py-6", className)}
@@ -21,12 +23,12 @@ export function Header({ className }: HeaderProps) {
 					<div className="h-px w-full bg-linear-to-r from-(--spooky-crimson)/60 to-transparent" />
 				</div>
 
-				{/* User email placeholder — wired up later */}
 				<div className="flex items-center gap-2">
-					{/* TODO: replace with real user email from auth session */}
-					<span className="hidden text-xs tracking-widest uppercase text-(--spooky-dust) opacity-60 sm:block">
-						{/* user email goes here */}
-					</span>
+					{session?.user.email && (
+						<span className="text-xs tracking-widest uppercase text-(--spooky-dust) opacity-60 sm:block">
+							{session.user.email}
+						</span>
+					)}
 				</div>
 			</div>
 
