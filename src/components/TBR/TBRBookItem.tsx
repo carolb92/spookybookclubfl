@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
 	AccordionContent,
 	AccordionItem,
@@ -30,6 +31,13 @@ export function TBRBookItem({
 	onVoteChange,
 	onDelete,
 }: TBRBookItemProps) {
+	const [descExpanded, setDescExpanded] = useState(false);
+	const TRUNCATE_AT = 600;
+	const descTruncated =
+		book.description && book.description.length > TRUNCATE_AT
+			? book.description.slice(0, TRUNCATE_AT).trimEnd() + "…"
+			: null;
+
 	return (
 		<AccordionItem
 			value={book.id}
@@ -74,7 +82,17 @@ export function TBRBookItem({
 						<div className="flex flex-col mt-2 md:mt-0">
 							{book.description && (
 								<p className="text-xs text-(--spooky-dust) leading-relaxed">
-									{book.description}
+									{descTruncated && !descExpanded
+										? descTruncated
+										: book.description}
+									{descTruncated && (
+										<button
+											onClick={() => setDescExpanded((v) => !v)}
+											className="ml-1 text-xs text-(--spooky-crimson)/70 hover:text-(--spooky-crimson) underline underline-offset-2 transition-colors"
+										>
+											{descExpanded ? "show less" : "read more"}
+										</button>
+									)}
 								</p>
 							)}
 							{book.page_count != null && book.page_count > 0 ? (
