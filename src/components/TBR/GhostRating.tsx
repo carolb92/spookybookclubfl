@@ -33,6 +33,7 @@ export function GhostRating({
 
 	async function handleVote(rating: number) {
 		if (!canVote) return;
+		const previousVote = localVote;
 		const shouldToggleOff = rating === localVote;
 		setLocalVote(shouldToggleOff ? null : rating);
 		setIsSaving(true);
@@ -67,6 +68,8 @@ export function GhostRating({
 				book_id: bookId,
 			});
 			onVoteChange(shouldToggleOff ? null : rating, newAvg ?? null);
+		} catch {
+			setLocalVote(previousVote);
 		} finally {
 			setIsSaving(false);
 		}
@@ -112,7 +115,7 @@ export function GhostRating({
 
 	return (
 		<div className="flex flex-col gap-1.5 items-center">
-			<div className="flex gap-0.5" onMouseLeave={() => setHovered(null)}>
+			<div role="group" aria-label="Rate your excitement" className="flex gap-0.5" onMouseLeave={() => setHovered(null)}>
 				{Array.from({ length: TOTAL }, (_, i) => {
 					const value = i + 1;
 					const isLit = value <= displayValue;

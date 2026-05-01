@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/contexts/useAuth";
 import { Accordion } from "@/components/ui/accordion";
@@ -30,13 +30,16 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 	const { session } = useAuth();
 	const [books, setBooks] = useState<BookWithStats[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
+	const [fetchError, setFetchError] = useState<string | null>(null);
 	const [currentPage, setCurrentPage] = useState(1);
+	const prevTotalPagesRef = useRef(0);
 
 	const userId = session?.user.id ?? null;
 
 	useEffect(() => {
 		async function fetchBooks() {
 			setIsLoading(true);
+			setFetchError(null);
 
 			const { data: booksData, error } = await supabase
 				.from("books")
@@ -45,6 +48,7 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 
 			if (error) {
 				console.error("Failed to fetch TBR books:", error);
+				setFetchError("Couldn't load the TBR list. Please refresh.");
 				setIsLoading(false);
 				return;
 			}
@@ -89,6 +93,12 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 				return b.avgExcitement - a.avgExcitement;
 			});
 
+			const newTotalPages = Math.ceil(booksWithStats.length / PAGE_SIZE);
+			if (prevTotalPagesRef.current > 0 && newTotalPages > prevTotalPagesRef.current) {
+				setCurrentPage(newTotalPages);
+			}
+			prevTotalPagesRef.current = newTotalPages;
+
 			setBooks(booksWithStats);
 			setIsLoading(false);
 		}
@@ -113,9 +123,21 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 	function handleDelete(bookId: string) {
 		setBooks((prev) => {
 			const next = prev.filter((b) => b.id !== bookId);
-			if (next.length === 0) onEmpty();
+			if (next.length === 0) {
+				onEmpty();
+			} else {
+				const newTotalPages = Math.ceil(next.length / PAGE_SIZE);
+				prevTotalPagesRef.current = newTotalPages;
+				setCurrentPage((p) => Math.min(p, newTotalPages));
+			}
 			return next;
 		});
+	}
+
+	if (fetchError) {
+		return (
+			<p className="text-sm text-(--spooky-dust) text-center py-4">{fetchError}</p>
+		);
 	}
 
 	if (isLoading) {
@@ -162,7 +184,8 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 					<PaginationContent>
 						<PaginationItem>
 							<PaginationPrevious
-								onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+								href="#"
+								onClick={(e) => { e.preventDefault(); setCurrentPage((p) => Math.max(1, p - 1)); }}
 								aria-disabled={currentPage === 1}
 								className={
 									currentPage === 1 ? "pointer-events-none opacity-40" : ""
@@ -178,8 +201,9 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 							) : (
 								<PaginationItem key={item}>
 									<PaginationLink
+										href="#"
 										isActive={item === currentPage}
-										onClick={() => setCurrentPage(item)}
+										onClick={(e) => { e.preventDefault(); setCurrentPage(item); }}
 									>
 										{item}
 									</PaginationLink>
@@ -189,9 +213,8 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 
 						<PaginationItem>
 							<PaginationNext
-								onClick={() =>
-									setCurrentPage((p) => Math.min(totalPages, p + 1))
-								}
+								href="#"
+								onClick={(e) => { e.preventDefault(); setCurrentPage((p) => Math.min(totalPages, p + 1)); }}
 								aria-disabled={currentPage === totalPages}
 								className={
 									currentPage === totalPages
