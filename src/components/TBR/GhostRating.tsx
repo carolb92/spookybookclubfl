@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { AuthModal } from "@/components/auth/AuthModal";
 
 const GHOST = "👻";
 const TOTAL = 5;
@@ -9,7 +10,7 @@ interface GhostRatingProps {
 	userId: string | null;
 	userVote: number | null;
 	avgExcitement: number | null;
-	onVoteChange: (newVote: number, newAvg: number | null) => void;
+	onVoteChange: (newVote: number | null, newAvg: number | null) => void;
 }
 
 export function GhostRating({
@@ -32,7 +33,8 @@ export function GhostRating({
 
 	async function handleVote(rating: number) {
 		if (!canVote) return;
-		setLocalVote(rating);
+		const shouldToggleOff = rating === localVote;
+		setLocalVote(shouldToggleOff ? null : rating);
 		setIsSaving(true);
 
 		try {
@@ -43,7 +45,14 @@ export function GhostRating({
 				.eq("user_id", userId!)
 				.maybeSingle();
 
-			if (existing) {
+			if (shouldToggleOff) {
+				if (existing) {
+					await supabase
+						.from("excitement_votes")
+						.delete()
+						.eq("id", existing.id);
+				}
+			} else if (existing) {
 				await supabase
 					.from("excitement_votes")
 					.update({ rating })
@@ -57,10 +66,48 @@ export function GhostRating({
 			const { data: newAvg } = await supabase.rpc("get_average_excitement", {
 				book_id: bookId,
 			});
-			onVoteChange(rating, newAvg ?? null);
+			onVoteChange(shouldToggleOff ? null : rating, newAvg ?? null);
 		} finally {
 			setIsSaving(false);
 		}
+	}
+
+	const dimGhosts = (
+		<>
+			{Array.from({ length: TOTAL }, (_, i) => (
+				<span
+					key={i}
+					className="text-xl select-none"
+					style={{ opacity: 0.2, filter: "grayscale(1)" }}
+				>
+					{GHOST}
+				</span>
+			))}
+		</>
+	);
+
+	if (!userId) {
+		return (
+			<div className="flex flex-col gap-1.5 items-center">
+				<AuthModal action="rate your excitement level">
+					<button
+						type="button"
+						className="flex gap-0.5 cursor-pointer"
+						aria-label="Log in to vote"
+					>
+						{dimGhosts}
+					</button>
+				</AuthModal>
+				<div className="flex gap-3 text-[10px] text-(--spooky-dust) tabular-nums">
+					<span>Log in to vote</span>
+					{avgExcitement !== null && (
+						<span className="text-[12px]">
+							Club avg: {avgExcitement.toFixed(1)}
+						</span>
+					)}
+				</div>
+			</div>
+		);
 	}
 
 	return (
@@ -73,13 +120,12 @@ export function GhostRating({
 						hovered === null && localVote !== null && value <= localVote;
 
 					return (
-						//TODO: if rating is one, clicking the ghost does not toggle it off. can adjust vote correctly if rating is > 1
 						<button
 							key={value}
 							type="button"
-							disabled={!canVote}
+							disabled={isSaving}
 							onClick={() => handleVote(value)}
-							onMouseEnter={() => canVote && setHovered(value)}
+							onMouseEnter={() => setHovered(value)}
 							aria-label={`Rate ${value} out of ${TOTAL}`}
 							className="text-lg leading-none transition-all duration-100 disabled:cursor-default select-none"
 							style={{
@@ -96,14 +142,11 @@ export function GhostRating({
 				})}
 			</div>
 			<div className="flex gap-3 text-[10px] text-(--spooky-dust) tabular-nums">
-				{/* //TODO: log in to vote should trigger auth modal */}
-				{userId ? (
-					<span className="text-[12px]">Your vote: {localVote ?? "none"}</span>
-				) : (
-					<span>Log in to vote</span>
-				)}
+				<span className="text-[12px]">Your vote: {localVote ?? "none"}</span>
 				{avgExcitement !== null && (
-					<span>Club avg: {avgExcitement.toFixed(1)}</span>
+					<span className="text-[12px]">
+						Club avg: {avgExcitement.toFixed(1)}
+					</span>
 				)}
 			</div>
 		</div>

@@ -13,7 +13,13 @@ import { BookPreview } from "./BookPreview";
 
 type ModalView = "search" | "preview";
 
-export function AddBookModal({ children }: { children: React.ReactNode }) {
+export function AddBookModal({
+	children,
+	onBookAdded,
+}: {
+	children: React.ReactNode;
+	onBookAdded?: () => void;
+}) {
 	const [view, setView] = useState<ModalView>("search");
 	const [selectedBook, setSelectedBook] = useState<GoogleBook | null>(null);
 
@@ -111,7 +117,7 @@ export function AddBookModal({ children }: { children: React.ReactNode }) {
 						/>
 					)}
 					{view === "preview" && selectedBook && (
-						<BookPreview book={selectedBook} onBack={handleBack} />
+						<BookPreview book={selectedBook} onBack={handleBack} onBookAdded={onBookAdded} />
 					)}
 				</div>
 			</DialogContent>

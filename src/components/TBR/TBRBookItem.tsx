@@ -14,7 +14,7 @@ interface TBRBookItemProps {
 	userId: string | null;
 	onVoteChange: (
 		bookId: string,
-		newVote: number,
+		newVote: number | null,
 		newAvg: number | null,
 	) => void;
 }
@@ -37,7 +37,7 @@ export function TBRBookItem({
 						<span className="font-display font-semibold text-sm text-(--spooky-parchment) leading-snug truncate">
 							{book.title}
 						</span>
-						<span className="text-xs text-(--spooky-dust)truncate sm:inline shrink-0 max-w-35">
+						<span className="text-xs text-(--spooky-dust) truncate sm:inline shrink-0 max-w-35">
 							{book.author}
 						</span>
 					</div>
@@ -49,14 +49,15 @@ export function TBRBookItem({
 				</div>
 			</AccordionTrigger>
 
-			<AccordionContent className="overflow-y-scroll md:h-1/3">
+			<AccordionContent className="overflow-y-scroll md:max-h-70">
+				{/* md:h-1/3 */}
 				<div className="flex flex-col gap-3 pb-4 pt-1 sm:gap-4">
 					<div className="flex flex-col gap-x-3 items-center md:flex-row md:max-w-fit md:shrink">
 						{book.cover_url ? (
 							<img
 								src={book.cover_url}
 								alt={book.title}
-								className="rounded object-contain w-[40%] md:w-auto"
+								className="rounded object-contain w-[40%] md:w-auto md:self-start"
 								style={{
 									boxShadow: "0 4px 16px -4px var(--spooky-crimson)",
 								}}
@@ -66,13 +67,18 @@ export function TBRBookItem({
 						)}
 						<div className="flex flex-col">
 							{book.description && (
-								<p className="text-xs text-(--spooky-dust) leading-relaxed my-3">
+								<p className="text-xs text-(--spooky-dust) leading-relaxed ">
+									{/* my-3 */}
 									{book.description}
 								</p>
 							)}
-							{book.page_count != null && (
+							{book.page_count != null && book.page_count > 0 ? (
 								<span className="text-xs text-(--spooky-dust) tabular-nums">
 									{book.page_count} pages
+								</span>
+							) : (
+								<span className="text-xs text-(--spooky-dust) tabular-nums">
+									No page count available
 								</span>
 							)}
 						</div>

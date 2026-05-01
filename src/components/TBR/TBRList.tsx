@@ -14,7 +14,7 @@ import {
 import { TBRBookItem } from "./TBRBookItem";
 import type { Tables } from "@/lib/database.types";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 type BookWithStats = Tables<"books"> & {
 	avgExcitement: number | null;
@@ -22,10 +22,11 @@ type BookWithStats = Tables<"books"> & {
 };
 
 interface TBRListProps {
-	onEmpty?: () => void;
+	onEmpty: () => void;
+	refetchKey: number;
 }
 
-export function TBRList({ onEmpty }: TBRListProps) {
+export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 	const { session } = useAuth();
 	const [books, setBooks] = useState<BookWithStats[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
@@ -37,15 +38,21 @@ export function TBRList({ onEmpty }: TBRListProps) {
 		async function fetchBooks() {
 			setIsLoading(true);
 
-			const { data: booksData } = await supabase
+			const { data: booksData, error } = await supabase
 				.from("books")
 				.select("*")
 				.eq("status", "tbr");
 
-			if (!booksData || booksData.length === 0) {
+			if (error) {
+				console.error("Failed to fetch TBR books:", error);
+				setIsLoading(false);
+				return;
+			}
+
+			if (booksData.length === 0) {
 				setBooks([]);
 				setIsLoading(false);
-				onEmpty?.();
+				onEmpty();
 				return;
 			}
 
@@ -87,11 +94,11 @@ export function TBRList({ onEmpty }: TBRListProps) {
 		}
 
 		fetchBooks();
-	}, [session, userId]);
+	}, [session, userId, onEmpty, refetchKey]);
 
 	function handleVoteChange(
 		bookId: string,
-		newVote: number,
+		newVote: number | null,
 		newAvg: number | null,
 	) {
 		setBooks((prev) =>
@@ -105,17 +112,17 @@ export function TBRList({ onEmpty }: TBRListProps) {
 
 	if (isLoading) {
 		return (
-			<div className="flex flex-col">
-				{Array.from({ length: 5 }, (_, i) => (
-					<div
-						key={i}
-						className="h-11 border-b border-(--spooky-border) animate-pulse"
-						style={{
-							background: "var(--spooky-skeleton)",
-							animationDelay: `${i * 80}ms`,
-						}}
-					/>
-				))}
+			<div className="flex flex-col w-full h-full justify-center items-center">
+				<div
+					// key={i}
+					className="h-11 border-b border-(--spooky-border) animate-pulse text-9xl opacity-25"
+					style={{
+						background: "var(--spooky-skeleton)",
+						// animationDelay: `${i * 80}ms`
+					}}
+				>
+					👻
+				</div>
 			</div>
 		);
 	}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { SectionEmptyHint } from "@/components/common/SectionEmptyHint";
 import { Button } from "@/components/ui/button";
 import { AddBookModal } from "./AddBookModal";
@@ -10,6 +10,12 @@ import { cn } from "@/lib/utils";
 export function TBRPanel() {
 	const { session } = useAuth();
 	const [isEmpty, setIsEmpty] = useState(false);
+	const [refetchKey, setRefetchKey] = useState(0);
+	const handleEmpty = useCallback(() => setIsEmpty(true), []);
+	const handleBookAdded = useCallback(() => {
+		setIsEmpty(false);
+		setRefetchKey((k) => k + 1);
+	}, []);
 
 	const addButton = (
 		<Button
@@ -27,14 +33,14 @@ export function TBRPanel() {
 
 	return (
 		<div className="flex flex-col gap-5">
-			<TBRList onEmpty={() => setIsEmpty(true)} />
 			<div className="flex justify-end">
 				{session ? (
-					<AddBookModal>{addButton}</AddBookModal>
+					<AddBookModal onBookAdded={handleBookAdded}>{addButton}</AddBookModal>
 				) : (
-					<AuthModal>{addButton}</AuthModal>
+					<AuthModal action="add books">{addButton}</AuthModal>
 				)}
 			</div>
+			<TBRList onEmpty={handleEmpty} refetchKey={refetchKey} />
 
 			{isEmpty && (
 				<div className="flex flex-col items-center justify-center gap-y-5 pt-4">
