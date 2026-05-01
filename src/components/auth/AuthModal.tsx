@@ -13,7 +13,12 @@ import { validateInviteCode, sendMagicLink } from "@/services/auth";
 
 type View = "form" | "success";
 
-export function AuthModal({ children }: { children: React.ReactNode }) {
+type AuthModalProps = {
+	action?: string;
+	children: React.ReactNode;
+};
+
+export function AuthModal({ children, action = "continue" }: AuthModalProps) {
 	const [view, setView] = useState<View>("form");
 	const [inviteCode, setInviteCode] = useState("");
 	const [email, setEmail] = useState("");
@@ -63,7 +68,7 @@ export function AuthModal({ children }: { children: React.ReactNode }) {
 				{view === "form" && (
 					<DialogHeader>
 						<DialogTitle className="font-display text-base tracking-wide text-(--spooky-parchment)">
-							Enter the invite code to add books
+							{`Enter the invite code to ${action}`}
 						</DialogTitle>
 						<div className="h-px bg-linear-to-r from-(--spooky-crimson)/40 to-transparent" />
 					</DialogHeader>
