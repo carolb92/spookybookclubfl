@@ -50,7 +50,6 @@ export function MainTabs() {
 
 			{/* Tab panels */}
 			<div className="px-6 py-6 md:px-10 md:py-8">
-				{/* max-w-2xl mx-auto */}
 				<TabsContent value="now-and-next">
 					<NowAndNextPanel />
 				</TabsContent>
