@@ -12,7 +12,7 @@ const TABS = [
 
 export function MainTabs() {
 	return (
-		<Tabs defaultValue="now-and-next" className="w-full">
+		<Tabs defaultValue="now-and-next" className="w-full lg:w-3/4">
 			{/* Tab bar */}
 			<div className="relative flex justify-center border-b border-(--spooky-border)">
 				<TabsList
@@ -49,8 +49,7 @@ export function MainTabs() {
 			</div>
 
 			{/* Tab panels */}
-			<div className="mx-30 px-6 py-6 md:px-10 md:py-8">
-				{/* max-w-2xl mx-auto */}
+			<div className="px-6 py-6 md:px-10 md:py-8">
 				<TabsContent value="now-and-next">
 					<NowAndNextPanel />
 				</TabsContent>

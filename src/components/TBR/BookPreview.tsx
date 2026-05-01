@@ -9,9 +9,11 @@ import { CoverPlaceholder } from "./CoverPlaceholder";
 export function BookPreview({
 	book,
 	onBack,
+	onBookAdded,
 }: {
 	book: GoogleBook;
 	onBack: () => void;
+	onBookAdded?: () => void;
 }) {
 	const [isAdding, setIsAdding] = useState(false);
 	const [addError, setAddError] = useState<string | null>(null);
@@ -41,13 +43,14 @@ export function BookPreview({
 				}
 				throw error;
 			}
+			onBookAdded?.();
 			closeRef.current?.click();
 		} catch {
 			setAddError("Failed to add book. Please try again.");
 		} finally {
 			setIsAdding(false);
 		}
-	}, [title, authorLine, coverUrl, description, pageCount, book.id]);
+	}, [title, authorLine, coverUrl, description, pageCount, book.id, onBookAdded]);
 
 	return (
 		<div className="flex flex-col gap-5">
@@ -107,9 +110,13 @@ export function BookPreview({
 				<p className="text-sm font-semibold text-(--spooky-dust)">
 					{authorLine}
 				</p>
-				{pageCount && (
+				{pageCount && pageCount > 0 ? (
 					<p className="text-xs text-(--spooky-dust)/60 tracking-widest uppercase">
 						{pageCount} pages
+					</p>
+				) : (
+					<p className="text-xs text-(--spooky-dust)/60 tracking-widest uppercase">
+						No page count available
 					</p>
 				)}
 			</div>
