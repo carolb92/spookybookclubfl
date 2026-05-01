@@ -110,15 +110,21 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 		);
 	}
 
+	function handleDelete(bookId: string) {
+		setBooks((prev) => {
+			const next = prev.filter((b) => b.id !== bookId);
+			if (next.length === 0) onEmpty();
+			return next;
+		});
+	}
+
 	if (isLoading) {
 		return (
 			<div className="flex flex-col w-full h-full justify-center items-center">
 				<div
-					// key={i}
 					className="h-11 border-b border-(--spooky-border) animate-pulse text-9xl opacity-25"
 					style={{
 						background: "var(--spooky-skeleton)",
-						// animationDelay: `${i * 80}ms`
 					}}
 				>
 					👻
@@ -146,6 +152,7 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 						userVote={book.userVote}
 						userId={userId}
 						onVoteChange={handleVoteChange}
+						onDelete={handleDelete}
 					/>
 				))}
 			</Accordion>
