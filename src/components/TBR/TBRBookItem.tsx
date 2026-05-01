@@ -41,7 +41,7 @@ export function TBRBookItem({
 						<span className="font-display font-semibold text-sm text-(--spooky-parchment) leading-snug truncate">
 							{book.title}
 						</span>
-						<span className="text-xs text-(--spooky-dust) truncate sm:inline shrink-0 max-w-35">
+						<span className="text-xs text-(--spooky-dust) truncate shrink-0 max-w-35">
 							{book.author}
 						</span>
 					</div>
@@ -53,8 +53,7 @@ export function TBRBookItem({
 				</div>
 			</AccordionTrigger>
 
-			<AccordionContent className="overflow-y-scroll md:max-h-74">
-				{/* md:h-1/3 */}
+			<AccordionContent className="overflow-y-auto md:max-h-74">
 				<div className="flex flex-col md:flex-row md:gap-4 pb-4 pt-1">
 					{/* Left: cover + description */}
 					<div className="flex flex-col gap-x-3 items-center md:flex-row md:flex-1 md:items-start">
