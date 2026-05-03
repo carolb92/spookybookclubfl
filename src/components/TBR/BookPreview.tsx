@@ -35,6 +35,7 @@ export function BookPreview({
 				page_count: pageCount ?? null,
 				google_books_id: book.id,
 				status: "tbr",
+				date_added: new Date().toISOString(),
 			});
 			if (error) {
 				if (error.code === "23505") {
@@ -50,7 +51,15 @@ export function BookPreview({
 		} finally {
 			setIsAdding(false);
 		}
-	}, [title, authorLine, coverUrl, description, pageCount, book.id, onBookAdded]);
+	}, [
+		title,
+		authorLine,
+		coverUrl,
+		description,
+		pageCount,
+		book.id,
+		onBookAdded,
+	]);
 
 	return (
 		<div className="flex flex-col gap-5">

@@ -120,6 +120,20 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 		);
 	}
 
+	function handleStatusChange(bookId: string) {
+		setBooks((prev) => {
+			const next = prev.filter((b) => b.id !== bookId);
+			if (next.length === 0) {
+				onEmpty();
+			} else {
+				const newTotalPages = Math.ceil(next.length / PAGE_SIZE);
+				prevTotalPagesRef.current = newTotalPages;
+				setCurrentPage((p) => Math.min(p, newTotalPages));
+			}
+			return next;
+		});
+	}
+
 	function handleDelete(bookId: string) {
 		setBooks((prev) => {
 			const next = prev.filter((b) => b.id !== bookId);
@@ -175,6 +189,7 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 						userId={userId}
 						onVoteChange={handleVoteChange}
 						onDelete={handleDelete}
+						onStatusChange={handleStatusChange}
 					/>
 				))}
 			</Accordion>

@@ -4,9 +4,8 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
 import { CoverPlaceholder } from "./CoverPlaceholder";
-import { DeleteBookDialog } from "./DeleteBookDialog";
+import { TBRBookActionsPanel } from "./TBRBookActionsPanel";
 import { GhostRating } from "./GhostRating";
 import type { Tables } from "@/lib/database.types";
 
@@ -21,6 +20,7 @@ interface TBRBookItemProps {
 		newAvg: number | null,
 	) => void;
 	onDelete: (bookId: string) => void;
+	onStatusChange: (bookId: string) => void;
 }
 
 export function TBRBookItem({
@@ -30,6 +30,7 @@ export function TBRBookItem({
 	userId,
 	onVoteChange,
 	onDelete,
+	onStatusChange,
 }: TBRBookItemProps) {
 	const [descExpanded, setDescExpanded] = useState(false);
 	const TRUNCATE_AT = 600;
@@ -81,7 +82,7 @@ export function TBRBookItem({
 						</div>
 						<div className="flex flex-col mt-2 md:mt-0">
 							{book.description && (
-								<p className="text-xs text-(--spooky-dust) leading-relaxed">
+								<p className="text-(--spooky-dust) leading-relaxed">
 									{descTruncated && !descExpanded
 										? descTruncated
 										: book.description}
@@ -118,29 +119,12 @@ export function TBRBookItem({
 								onVoteChange(book.id, newVote, newAvg)
 							}
 						/>
-						<div className="flex flex-col gap-2">
-							<div className="grid grid-cols-2 gap-2 md:grid-cols-1">
-								<Button
-									variant="ghost"
-									className="h-8 px-3 text-xs uppercase tracking-widest border-2 border-(--spooky-crimson)/50 text-(--spooky-dust) bg-(--spooky-crimson)/15 hover:bg-(--spooky-crimson)/8 hover:border-(--spooky-crimson)/60 hover:text-(--spooky-crimson)/70 transition-colors duration-200"
-								>
-									+ Currently Reading
-								</Button>
-								<Button
-									variant="ghost"
-									className="h-8 px-3 text-xs uppercase tracking-widest border-2 border-(--spooky-crimson)/50 text-(--spooky-dust) bg-(--spooky-crimson)/15 hover:bg-(--spooky-crimson)/8 hover:border-(--spooky-crimson)/60 hover:text-(--spooky-crimson)/70 transition-colors duration-200"
-								>
-									+ Up Next
-								</Button>
-							</div>
-							<div className="flex">
-								<DeleteBookDialog
-									bookId={book.id}
-									bookTitle={book.title}
-									onDelete={onDelete}
-								/>
-							</div>
-						</div>
+						<TBRBookActionsPanel
+							book={book}
+							userId={userId}
+							onDelete={onDelete}
+							onStatusChange={onStatusChange}
+						/>
 					</div>
 				</div>
 			</AccordionContent>

@@ -8,7 +8,7 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabaseClient";
+import { deleteBook } from "@/services/bookActions";
 
 interface DeleteBookDialogProps {
 	bookId: string;
@@ -28,13 +28,10 @@ export function DeleteBookDialog({
 	async function handleDelete() {
 		setIsDeleting(true);
 		setError(null);
-		const { error: deleteError } = await supabase
-			.from("books")
-			.delete()
-			.eq("id", bookId);
+		const error = await deleteBook(bookId);
 		setIsDeleting(false);
-		if (deleteError) {
-			setError("Failed to delete. Please try again.");
+		if (error) {
+			setError(error);
 			return;
 		}
 		setOpen(false);
