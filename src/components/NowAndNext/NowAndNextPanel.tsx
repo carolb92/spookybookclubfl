@@ -1,17 +1,18 @@
 import type { ReactNode } from "react";
-import { BookCardSkeleton } from "@/components/common/BookCardSkeleton";
+import { useAuth } from "@/contexts/useAuth";
+import { CurrentlyReadingCard } from "./CurrentlyReadingCard";
+import { UpNextList } from "./UpNextList";
 
-/**
- * "Now & Next" tab — skeleton placeholder for the current pick and
- * the upcoming selection. Will be wired to real data later.
- */
 export function NowAndNextPanel() {
+	const { session } = useAuth();
+	const userId = session?.user.id ?? null;
+
 	return (
 		<div className="flex flex-col gap-8">
 			{/* Currently reading */}
 			<section>
 				<SectionLabel>Now Reading</SectionLabel>
-				<BookCardSkeleton tall />
+				<CurrentlyReadingCard userId={userId} />
 			</section>
 
 			{/* Divider */}
@@ -20,25 +21,16 @@ export function NowAndNextPanel() {
 			{/* Up next */}
 			<section>
 				<SectionLabel>Up Next</SectionLabel>
-				<BookCardSkeleton />
-			</section>
-
-			{/* Meeting details skeleton */}
-			<section>
-				<SectionLabel>Next Meeting</SectionLabel>
-				<div className="flex flex-col gap-2 rounded-sm border border-(--spooky-border) bg-(--spooky-card) p-4">
-					<div className="h-3 w-2/5 rounded-sm bg-(--spooky-skeleton)" />
-					<div className="h-3 w-1/3 rounded-sm bg-(--spooky-skeleton) opacity-60" />
-				</div>
+				<UpNextList userId={userId} />
 			</section>
 		</div>
 	);
 }
 
-function SectionLabel({ children }: { children: ReactNode }) {
+export function SectionLabel({ children }: { children: ReactNode }) {
 	return (
-		<p className="mb-3 text-[0.65rem] tracking-[0.2em] uppercase text-(--spooky-crimson) font-sans">
+		<h2 className="mb-6 font-section text-3xl font-semibold tracking-widest uppercase text-(--spooky-crimson) text-center">
 			{children}
-		</p>
+		</h2>
 	);
 }
