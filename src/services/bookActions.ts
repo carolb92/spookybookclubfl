@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { parseDateString } from "@/lib/utils";
 
 export async function getCurrentlyReadingBook(): Promise<{
 	data: { id: string; title: string } | null;
@@ -48,7 +49,7 @@ export async function markAsOnDeck(bookId: string): Promise<string | null> {
 	let nextMeetingDate: string | null = null;
 
 	if (anchor?.next_meeting_date) {
-		const d = new Date(anchor.next_meeting_date);
+		const d = parseDateString(anchor.next_meeting_date);
 		d.setDate(d.getDate() + 14);
 		nextMeetingDate = d.toISOString();
 	} else {
@@ -60,7 +61,7 @@ export async function markAsOnDeck(bookId: string): Promise<string | null> {
 			.limit(1)
 			.maybeSingle();
 		if (settings?.last_meeting_date) {
-			const d = new Date(settings.last_meeting_date);
+			const d = parseDateString(settings.last_meeting_date);
 			d.setDate(d.getDate() + 28);
 			nextMeetingDate = d.toISOString();
 		}
@@ -85,7 +86,7 @@ export async function updateMeetingDate(bookId: string, date: Date): Promise<str
 export async function markAsTBR(bookId: string): Promise<string | null> {
 	const { error } = await supabase
 		.from("books")
-		.update({ status: "tbr", date_started: null })
+		.update({ status: "tbr", date_started: null, next_meeting_date: null })
 		.eq("id", bookId);
 
 	return error ? "Failed to update. Please try again." : null;
