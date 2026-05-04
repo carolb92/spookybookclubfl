@@ -19,6 +19,7 @@ interface CurrentlyReadingDialogProps {
 	onClose: () => void;
 	/** When provided, renders an "Add to Up Next instead" option in the conflict dialog. */
 	onAddToUpNext?: () => void;
+	isAddingToUpNext?: boolean;
 }
 
 export function CurrentlyReadingDialog({
@@ -31,6 +32,7 @@ export function CurrentlyReadingDialog({
 	onReplace,
 	onClose,
 	onAddToUpNext,
+	isAddingToUpNext = false,
 }: CurrentlyReadingDialogProps) {
 	return (
 		<Dialog
@@ -106,10 +108,10 @@ export function CurrentlyReadingDialog({
 							{onAddToUpNext && (
 								<Button
 									onClick={onAddToUpNext}
-									disabled={isSubmitting}
+									disabled={isSubmitting || isAddingToUpNext}
 									className="bg-(--spooky-surface) hover:bg-(--spooky-border)/40 text-(--spooky-parchment) border border-(--spooky-border) transition-all duration-150 disabled:opacity-50"
 								>
-									{isSubmitting ? "Saving…" : "Add to Up Next instead"}
+									{isAddingToUpNext ? "Saving…" : "Add to Up Next instead"}
 								</Button>
 							)}
 							<Button

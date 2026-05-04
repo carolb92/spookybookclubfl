@@ -172,7 +172,7 @@ export function UpNextCard({
 						</Button>
 						<Button
 							variant="outline"
-							onClick={() => setConfirmTBROpen(false)}
+							onClick={() => { setConfirmTBROpen(false); setTbrError(null); }}
 							disabled={isMovingToTBR}
 							className="text-(--spooky-dust) hover:text-(--spooky-parchment) hover:bg-(--spooky-border)/40"
 						>
