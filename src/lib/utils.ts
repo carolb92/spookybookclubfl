@@ -16,6 +16,15 @@ export function parseDateString(dateStr: string): Date {
 	return new Date(year, month - 1, day, 12, 0, 0);
 }
 
+export function formatDate(date: Date): string {
+	return date.toLocaleDateString("en-US", {
+		weekday: "long",
+		month: "long",
+		day: "numeric",
+		year: "numeric",
+	});
+}
+
 export function getHighResCover(url: string): string {
   return url
     .replace(/^http:\/\//, "https://")
