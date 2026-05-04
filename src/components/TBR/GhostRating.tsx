@@ -92,30 +92,41 @@ export function GhostRating({
 	if (!userId) {
 		return (
 			<div className="flex flex-col gap-1.5 items-center">
+				<span className="font-section text-xs uppercase tracking-widest text-(--spooky-crimson)">
+					Hype
+				</span>
 				<AuthModal action="rate your excitement level">
 					<button
 						type="button"
-						className="flex gap-0.5 cursor-pointer"
+						className="flex flex-col gap-1.5 items-center cursor-pointer"
 						aria-label="Log in to vote"
 					>
-						{dimGhosts}
+						<div className="flex gap-0.5">{dimGhosts}</div>
+						<span className="text-[12px] text-(--spooky-dust)">
+							Log in to vote
+						</span>
 					</button>
 				</AuthModal>
-				<div className="flex gap-3 text-[10px] text-(--spooky-dust) tabular-nums">
-					<span>Log in to vote</span>
-					{avgExcitement !== null && (
-						<span className="text-[12px]">
-							Club avg: {avgExcitement.toFixed(1)}
-						</span>
-					)}
-				</div>
+				{avgExcitement !== null && (
+					<span className="text-[12px] text-(--spooky-dust) tabular-nums">
+						Club avg: {avgExcitement.toFixed(1)}
+					</span>
+				)}
 			</div>
 		);
 	}
 
 	return (
 		<div className="flex flex-col gap-1.5 items-center">
-			<div role="group" aria-label="Rate your excitement" className="flex gap-0.5" onMouseLeave={() => setHovered(null)}>
+			<span className="font-section text-xs uppercase tracking-widest text-(--spooky-crimson)">
+				Hype
+			</span>
+			<div
+				role="group"
+				aria-label="Rate your excitement"
+				className="flex gap-0.5"
+				onMouseLeave={() => setHovered(null)}
+			>
 				{Array.from({ length: TOTAL }, (_, i) => {
 					const value = i + 1;
 					const isLit = value <= displayValue;

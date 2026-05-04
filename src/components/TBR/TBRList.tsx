@@ -94,7 +94,10 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 			});
 
 			const newTotalPages = Math.ceil(booksWithStats.length / PAGE_SIZE);
-			if (prevTotalPagesRef.current > 0 && newTotalPages > prevTotalPagesRef.current) {
+			if (
+				prevTotalPagesRef.current > 0 &&
+				newTotalPages > prevTotalPagesRef.current
+			) {
 				setCurrentPage(newTotalPages);
 			}
 			prevTotalPagesRef.current = newTotalPages;
@@ -150,7 +153,9 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 
 	if (fetchError) {
 		return (
-			<p className="text-sm text-(--spooky-dust) text-center py-4">{fetchError}</p>
+			<p className="text-sm text-(--spooky-dust) text-center py-4">
+				{fetchError}
+			</p>
 		);
 	}
 
@@ -163,7 +168,7 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 						background: "var(--spooky-skeleton)",
 					}}
 				>
-					👻
+					😈
 				</div>
 			</div>
 		);
@@ -200,7 +205,10 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 						<PaginationItem>
 							<PaginationPrevious
 								href="#"
-								onClick={(e) => { e.preventDefault(); setCurrentPage((p) => Math.max(1, p - 1)); }}
+								onClick={(e) => {
+									e.preventDefault();
+									setCurrentPage((p) => Math.max(1, p - 1));
+								}}
 								aria-disabled={currentPage === 1}
 								className={
 									currentPage === 1 ? "pointer-events-none opacity-40" : ""
@@ -218,7 +226,10 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 									<PaginationLink
 										href="#"
 										isActive={item === currentPage}
-										onClick={(e) => { e.preventDefault(); setCurrentPage(item); }}
+										onClick={(e) => {
+											e.preventDefault();
+											setCurrentPage(item);
+										}}
 									>
 										{item}
 									</PaginationLink>
@@ -229,7 +240,10 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 						<PaginationItem>
 							<PaginationNext
 								href="#"
-								onClick={(e) => { e.preventDefault(); setCurrentPage((p) => Math.min(totalPages, p + 1)); }}
+								onClick={(e) => {
+									e.preventDefault();
+									setCurrentPage((p) => Math.min(totalPages, p + 1));
+								}}
 								aria-disabled={currentPage === totalPages}
 								className={
 									currentPage === totalPages
