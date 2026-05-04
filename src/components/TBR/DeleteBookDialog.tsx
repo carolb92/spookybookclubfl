@@ -14,12 +14,14 @@ interface DeleteBookDialogProps {
 	bookId: string;
 	bookTitle: string;
 	onDelete: (bookId: string) => void;
+	triggerWidth?: "full" | "auto";
 }
 
 export function DeleteBookDialog({
 	bookId,
 	bookTitle,
 	onDelete,
+	triggerWidth = "full",
 }: DeleteBookDialogProps) {
 	const [open, setOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
@@ -50,7 +52,7 @@ export function DeleteBookDialog({
 				<Button
 					type="button"
 					variant="ghost"
-					className="h-8 px-3 text-xs uppercase tracking-widest border border-(--spooky-crimson)/25 text-(--spooky-dust)/50 bg-transparent hover:bg-(--spooky-crimson)/8 hover:border-(--spooky-crimson)/60 hover:text-(--spooky-crimson)/70 transition-colors duration-200 w-full"
+					className={`h-8 px-3 text-xs uppercase tracking-widest border border-(--spooky-crimson)/25 text-(--spooky-dust)/50 bg-transparent hover:bg-(--spooky-crimson)/8 hover:border-(--spooky-crimson)/60 hover:text-(--spooky-crimson)/70 transition-colors duration-200 ${triggerWidth === "full" ? "w-full" : "w-auto"}`}
 				>
 					Remove book
 				</Button>
@@ -65,7 +67,7 @@ export function DeleteBookDialog({
 						<span className="text-(--spooky-parchment) font-semibold">
 							{bookTitle}
 						</span>{" "}
-						from the TBR list? This cannot be undone.
+						? This cannot be undone.
 					</DialogDescription>
 				</DialogHeader>
 				{error && <p className="text-xs text-red-400/80">{error}</p>}
