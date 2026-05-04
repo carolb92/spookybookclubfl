@@ -34,7 +34,10 @@ export function TBRBookActionsPanel({
 	onStatusChange,
 }: TBRBookActionsPanelProps) {
 	const [dialogState, setDialogState] = useState<DialogState>(null);
-	const [existingBook, setExistingBook] = useState<{ id: string; title: string } | null>(null);
+	const [existingBook, setExistingBook] = useState<{
+		id: string;
+		title: string;
+	} | null>(null);
 	const [isChecking, setIsChecking] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -137,7 +140,12 @@ export function TBRBookActionsPanel({
 							+ Currently Reading
 						</ActionButton>
 
-						<Dialog open={dialogState !== null} onOpenChange={(next) => { if (!next) closeDialog(); }}>
+						<Dialog
+							open={dialogState !== null}
+							onOpenChange={(next) => {
+								if (!next) closeDialog();
+							}}
+						>
 							<DialogContent className="max-w-sm border-(--spooky-border) bg-(--spooky-surface) text-(--spooky-parchment) shadow-2xl shadow-black/70">
 								{dialogState === "confirm" && (
 									<>
@@ -153,7 +161,9 @@ export function TBRBookActionsPanel({
 												as currently reading?
 											</DialogDescription>
 										</DialogHeader>
-										{error && <p className="text-xs text-red-400/80">{error}</p>}
+										{error && (
+											<p className="text-xs text-red-400/80">{error}</p>
+										)}
 										<div className="flex flex-col gap-2">
 											<Button
 												onClick={handleConfirm}
@@ -177,8 +187,8 @@ export function TBRBookActionsPanel({
 								{dialogState === "conflict" && existingBook && (
 									<>
 										<DialogHeader>
-											<DialogTitle className="font-display text-base tracking-wide text-(--spooky-parchment)">
-												Slot's taken!
+											<DialogTitle className="font-sans uppercase font-light text-xs tracking-widest text-(--spooky-crimson) text-center">
+												Now wait just one goddamn minute
 											</DialogTitle>
 											<DialogDescription className="text-(--spooky-dust) text-sm">
 												<span className="text-(--spooky-parchment) font-semibold">
@@ -191,14 +201,18 @@ export function TBRBookActionsPanel({
 												?
 											</DialogDescription>
 										</DialogHeader>
-										{error && <p className="text-xs text-red-400/80">{error}</p>}
+										{error && (
+											<p className="text-xs text-red-400/80">{error}</p>
+										)}
 										<div className="flex flex-col gap-2">
 											<Button
 												onClick={handleReplace}
 												disabled={isSubmitting}
 												className="bg-(--spooky-crimson) hover:bg-(--spooky-crimson)/80 text-(--spooky-parchment) border border-(--spooky-crimson)/60 hover:border-(--spooky-crimson) transition-all duration-150 disabled:opacity-50"
 											>
-												{isSubmitting ? "Saving…" : "Mark the other book as read & start this one"}
+												{isSubmitting
+													? "Saving…"
+													: `Mark ${existingBook.title} as read & start ${book.title}`}
 											</Button>
 											<Button
 												onClick={handleAddToUpNext}
@@ -227,7 +241,18 @@ export function TBRBookActionsPanel({
 					</AuthModal>
 				)}
 
-				<ActionButton>+ Up Next</ActionButton>
+				{userId ? (
+						<ActionButton
+							onClick={handleAddToUpNext}
+							disabled={isSubmitting}
+						>
+							+ Up Next
+						</ActionButton>
+					) : (
+						<AuthModal action="add a book to Up Next">
+							<ActionButton>+ Up Next</ActionButton>
+						</AuthModal>
+					)}
 			</div>
 			<div className="flex">
 				<DeleteBookDialog
