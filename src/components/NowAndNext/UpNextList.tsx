@@ -104,7 +104,10 @@ export function UpNextList({ userId }: UpNextListProps) {
 			}),
 		);
 
-		await Promise.all(updates.map(({ id, date }) => updateMeetingDate(id, date)));
+		const results = await Promise.all(updates.map(({ id, date }) => updateMeetingDate(id, date)));
+		if (results.some(Boolean)) {
+			setError("Failed to save one or more dates. Please refresh.");
+		}
 	}
 
 	function handleRemove(bookId: string) {

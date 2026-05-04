@@ -12,12 +12,9 @@ import { BookDescription } from "@/components/common/BookDescription";
 import { CoverPlaceholder } from "@/components/TBR/CoverPlaceholder";
 import { DeleteBookDialog } from "@/components/TBR/DeleteBookDialog";
 import { MeetingDatePicker } from "@/components/common/MeetingDatePicker";
-import {
-	getCurrentlyReadingBook,
-	markAsCurrentlyReading,
-	markAsRead,
-	markAsTBR,
-} from "@/services/bookActions";
+import { CurrentlyReadingDialog } from "@/components/common/CurrentlyReadingDialog";
+import { useCurrentlyReadingFlow } from "@/hooks/useCurrentlyReadingFlow";
+import { markAsTBR } from "@/services/bookActions";
 import type { Tables } from "@/lib/database.types";
 
 interface UpNextCardProps {
@@ -30,8 +27,6 @@ interface UpNextCardProps {
 	onStatusChange: (bookId: string) => void;
 }
 
-type DialogState = "confirmCurrent" | "conflict" | "confirmTBR" | null;
-
 export function UpNextCard({
 	book,
 	index,
@@ -41,78 +36,21 @@ export function UpNextCard({
 	onRemove,
 	onStatusChange,
 }: UpNextCardProps) {
-	const [dialogState, setDialogState] = useState<DialogState>(null);
-	const [existingBook, setExistingBook] = useState<{
-		id: string;
-		title: string;
-	} | null>(null);
-	const [isChecking, setIsChecking] = useState(false);
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-
-	function closeDialog() {
-		setDialogState(null);
-		setExistingBook(null);
-		setError(null);
-	}
-
-	async function handleMoveToCurrentlyReading() {
-		setIsChecking(true);
-		setError(null);
-		const { data: existing, error } = await getCurrentlyReadingBook();
-		setIsChecking(false);
-		if (error) {
-			setError(error);
-			return;
-		}
-		if (existing) {
-			setExistingBook(existing);
-			setDialogState("conflict");
-		} else {
-			setDialogState("confirmCurrent");
-		}
-	}
-
-	async function handleConfirmCurrent() {
-		setIsSubmitting(true);
-		setError(null);
-		const err = await markAsCurrentlyReading(book.id);
-		setIsSubmitting(false);
-		if (err) {
-			setError(err);
-			return;
-		}
-		closeDialog();
-		onStatusChange(book.id);
-	}
-
-	async function handleReplace() {
-		if (!existingBook) return;
-		setIsSubmitting(true);
-		setError(null);
-		const [finishError, startError] = await Promise.all([
-			markAsRead(existingBook.id),
-			markAsCurrentlyReading(book.id),
-		]);
-		setIsSubmitting(false);
-		if (finishError || startError) {
-			setError("Failed to update. Please try again.");
-			return;
-		}
-		closeDialog();
-		onStatusChange(book.id);
-	}
+	const flow = useCurrentlyReadingFlow(book.id, () => onStatusChange(book.id));
+	const [confirmTBROpen, setConfirmTBROpen] = useState(false);
+	const [isMovingToTBR, setIsMovingToTBR] = useState(false);
+	const [tbrError, setTbrError] = useState<string | null>(null);
 
 	async function handleConfirmTBR() {
-		setIsSubmitting(true);
-		setError(null);
+		setIsMovingToTBR(true);
+		setTbrError(null);
 		const err = await markAsTBR(book.id);
-		setIsSubmitting(false);
+		setIsMovingToTBR(false);
 		if (err) {
-			setError(err);
+			setTbrError(err);
 			return;
 		}
-		closeDialog();
+		setConfirmTBROpen(false);
 		onStatusChange(book.id);
 	}
 
@@ -129,7 +67,7 @@ export function UpNextCard({
 					<img
 						src={book.cover_url}
 						alt={book.title}
-						className="w-auto rounded object-cover"
+						className="w-full rounded object-cover"
 						style={{ boxShadow: "0 4px 12px -4px var(--spooky-crimson)" }}
 					/>
 				) : (
@@ -169,14 +107,14 @@ export function UpNextCard({
 				{userId && (
 					<div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-(--spooky-border)">
 						<ActionButton
-							onClick={handleMoveToCurrentlyReading}
-							disabled={isChecking}
+							onClick={flow.initiate}
+							disabled={flow.isChecking}
 							className="text-xs"
 						>
 							→ Currently Reading
 						</ActionButton>
 						<ActionButton
-							onClick={() => setDialogState("confirmTBR")}
+							onClick={() => setConfirmTBROpen(true)}
 							className="text-xs"
 						>
 							← Back to TBR
@@ -191,122 +129,56 @@ export function UpNextCard({
 				)}
 			</div>
 
-			{/* Dialogs */}
+			<CurrentlyReadingDialog
+				book={book}
+				flowState={flow.flowState}
+				existingBook={flow.existingBook}
+				isSubmitting={flow.isSubmitting}
+				error={flow.error}
+				onConfirm={flow.confirm}
+				onReplace={flow.replace}
+				onClose={flow.close}
+			/>
+
 			<Dialog
-				open={dialogState !== null}
+				open={confirmTBROpen}
 				onOpenChange={(next) => {
-					if (!next) closeDialog();
+					if (!next) {
+						setConfirmTBROpen(false);
+						setTbrError(null);
+					}
 				}}
 			>
 				<DialogContent className="max-w-sm border-(--spooky-border) bg-(--spooky-surface) text-(--spooky-parchment) shadow-2xl shadow-black/70">
-					{dialogState === "confirmCurrent" && (
-						<>
-							<DialogHeader>
-								<DialogTitle className="font-display text-base tracking-wide text-(--spooky-parchment)">
-									Start reading?
-								</DialogTitle>
-								<DialogDescription className="text-(--spooky-dust) text-sm">
-									Mark{" "}
-									<span className="text-(--spooky-parchment) font-semibold">
-										{book.title}
-									</span>{" "}
-									as currently reading?
-								</DialogDescription>
-							</DialogHeader>
-							{error && <p className="text-xs text-red-400/80">{error}</p>}
-							<div className="flex flex-col gap-2">
-								<Button
-									onClick={handleConfirmCurrent}
-									disabled={isSubmitting}
-									className="bg-(--spooky-crimson) hover:bg-(--spooky-crimson)/80 text-(--spooky-parchment) border border-(--spooky-crimson)/60 transition-all duration-150 disabled:opacity-50"
-								>
-									{isSubmitting ? "Saving…" : "Fuck yeah!"}
-								</Button>
-								<Button
-									variant="outline"
-									onClick={closeDialog}
-									disabled={isSubmitting}
-									className="text-(--spooky-dust) hover:text-(--spooky-parchment) hover:bg-(--spooky-border)/40"
-								>
-									Oops, not yet
-								</Button>
-							</div>
-						</>
-					)}
-
-					{dialogState === "conflict" && existingBook && (
-						<>
-							<DialogHeader>
-								<DialogTitle className="font-sans uppercase font-light text-xs tracking-widest text-(--spooky-crimson) text-center">
-									Now wait just one goddamn minute
-								</DialogTitle>
-								<DialogDescription className="text-(--spooky-dust) text-sm">
-									<span className="text-(--spooky-parchment) font-semibold">
-										{existingBook.title}
-									</span>{" "}
-									is currently being read. What do you want to do with{" "}
-									<span className="text-(--spooky-parchment) font-semibold">
-										{book.title}
-									</span>
-									?
-								</DialogDescription>
-							</DialogHeader>
-							{error && <p className="text-xs text-red-400/80">{error}</p>}
-							<div className="flex flex-col gap-2">
-								<Button
-									onClick={handleReplace}
-									disabled={isSubmitting}
-									className="bg-(--spooky-crimson) hover:bg-(--spooky-crimson)/80 text-(--spooky-parchment) border border-(--spooky-crimson)/60 transition-all duration-150 disabled:opacity-50"
-								>
-									{isSubmitting
-										? "Saving…"
-										: `Mark ${existingBook.title} as read & start ${book.title}`}
-								</Button>
-								<Button
-									variant="outline"
-									onClick={closeDialog}
-									disabled={isSubmitting}
-									className="text-(--spooky-dust) hover:text-(--spooky-parchment) hover:bg-(--spooky-border)/40"
-								>
-									Never mind
-								</Button>
-							</div>
-						</>
-					)}
-
-					{dialogState === "confirmTBR" && (
-						<>
-							<DialogHeader>
-								<DialogTitle className="font-display text-base tracking-wide text-(--spooky-parchment)">
-									Move back to TBR?
-								</DialogTitle>
-								<DialogDescription className="text-(--spooky-dust) text-sm">
-									<span className="text-(--spooky-parchment) font-semibold">
-										{book.title}
-									</span>{" "}
-									will be moved back to your TBR list.
-								</DialogDescription>
-							</DialogHeader>
-							{error && <p className="text-xs text-red-400/80">{error}</p>}
-							<div className="flex flex-col gap-2">
-								<Button
-									onClick={handleConfirmTBR}
-									disabled={isSubmitting}
-									className="bg-(--spooky-crimson) hover:bg-(--spooky-crimson)/80 text-(--spooky-parchment) border border-(--spooky-crimson)/60 transition-all duration-150 disabled:opacity-50"
-								>
-									{isSubmitting ? "Saving…" : "Yup"}
-								</Button>
-								<Button
-									variant="outline"
-									onClick={closeDialog}
-									disabled={isSubmitting}
-									className="text-(--spooky-dust) hover:text-(--spooky-parchment) hover:bg-(--spooky-border)/40"
-								>
-									Cancel
-								</Button>
-							</div>
-						</>
-					)}
+					<DialogHeader>
+						<DialogTitle className="font-display text-base tracking-wide text-(--spooky-parchment)">
+							Move back to TBR?
+						</DialogTitle>
+						<DialogDescription className="text-(--spooky-dust) text-sm">
+							<span className="text-(--spooky-parchment) font-semibold">
+								{book.title}
+							</span>{" "}
+							will be moved back to your TBR list.
+						</DialogDescription>
+					</DialogHeader>
+					{tbrError && <p className="text-xs text-red-400/80">{tbrError}</p>}
+					<div className="flex flex-col gap-2">
+						<Button
+							onClick={handleConfirmTBR}
+							disabled={isMovingToTBR}
+							className="bg-(--spooky-crimson) hover:bg-(--spooky-crimson)/80 text-(--spooky-parchment) border border-(--spooky-crimson)/60 transition-all duration-150 disabled:opacity-50"
+						>
+							{isMovingToTBR ? "Saving…" : "Yup"}
+						</Button>
+						<Button
+							variant="outline"
+							onClick={() => setConfirmTBROpen(false)}
+							disabled={isMovingToTBR}
+							className="text-(--spooky-dust) hover:text-(--spooky-parchment) hover:bg-(--spooky-border)/40"
+						>
+							Cancel
+						</Button>
+					</div>
 				</DialogContent>
 			</Dialog>
 		</div>

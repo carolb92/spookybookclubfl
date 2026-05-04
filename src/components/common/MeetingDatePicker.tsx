@@ -6,6 +6,7 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
+import { formatDate } from "@/lib/utils";
 
 interface MeetingDatePickerProps {
 	date: Date | null;
@@ -13,29 +14,20 @@ interface MeetingDatePickerProps {
 	onChange?: (date: Date) => void;
 }
 
-function formatDate(date: Date): string {
-	return date.toLocaleDateString("en-US", {
-		weekday: "long",
-		month: "long",
-		day: "numeric",
-		year: "numeric",
-	});
-}
-
 // Overrides ShadCN's default light-mode tokens to match the spooky design system
 const calendarTheme = {
-	"--background": "#120f15",
-	"--foreground": "#e4dce8",
-	"--popover": "#120f15",
-	"--popover-foreground": "#e4dce8",
-	"--primary": "#7d3048",
-	"--primary-foreground": "#e4dce8",
-	"--muted": "rgba(220,210,230,0.06)",
-	"--muted-foreground": "#9488a0",
-	"--accent": "rgba(220,210,230,0.06)",
-	"--accent-foreground": "#e4dce8",
-	"--border": "rgba(220,210,230,0.08)",
-	"--ring": "rgba(220,210,230,0.2)",
+	"--background": "var(--spooky-bg)",
+	"--foreground": "var(--spooky-parchment)",
+	"--popover": "var(--spooky-bg)",
+	"--popover-foreground": "var(--spooky-parchment)",
+	"--primary": "var(--spooky-crimson)",
+	"--primary-foreground": "var(--spooky-parchment)",
+	"--muted": "var(--spooky-surface)",
+	"--muted-foreground": "var(--spooky-dust)",
+	"--accent": "var(--spooky-surface)",
+	"--accent-foreground": "var(--spooky-parchment)",
+	"--border": "var(--spooky-border)",
+	"--ring": "var(--spooky-border)",
 } as React.CSSProperties;
 
 export function MeetingDatePicker({ date, onChange }: MeetingDatePickerProps) {

@@ -4,7 +4,7 @@ import { BookDescription } from "@/components/common/BookDescription";
 import { CoverPlaceholder } from "@/components/TBR/CoverPlaceholder";
 import { BookCardSkeleton } from "@/components/common/BookCardSkeleton";
 import { ActionButton } from "@/components/TBR/ActionButton";
-import { parseDateString } from "@/lib/utils";
+import { parseDateString, formatDate } from "@/lib/utils";
 import type { Tables } from "@/lib/database.types";
 // import { getHighResCover } from "@/lib/utils";
 
@@ -23,14 +23,6 @@ function addTwoWeeks(dateStr: string): Date {
 	return d;
 }
 
-function formatDate(date: Date): string {
-	return date.toLocaleDateString("en-US", {
-		weekday: "long",
-		month: "long",
-		day: "numeric",
-		year: "numeric",
-	});
-}
 
 export function CurrentlyReadingCard({ userId }: CurrentlyReadingCardProps) {
 	const [book, setBook] = useState<Tables<"books"> | null>(null);

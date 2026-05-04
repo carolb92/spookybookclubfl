@@ -27,7 +27,7 @@ export function NowAndNextPanel() {
 	);
 }
 
-export function SectionLabel({ children }: { children: ReactNode }) {
+function SectionLabel({ children }: { children: ReactNode }) {
 	return (
 		<h2 className="mb-6 font-section text-3xl font-semibold tracking-widest uppercase text-(--spooky-crimson) text-center">
 			{children}
