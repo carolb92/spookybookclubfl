@@ -6,15 +6,15 @@ import { SectionEmptyHint } from "@/components/common/SectionEmptyHint";
  * Will be wired to real data later.
  */
 export function ReadPanel() {
-  const skeletonCount = 5;
+	const skeletonCount = 3;
 
-  return (
-    <div className="flex flex-col gap-3">
-      <SectionEmptyHint>Every book leaves a mark.</SectionEmptyHint>
+	return (
+		<div className="flex flex-col gap-3">
+			<SectionEmptyHint>Coming soon!</SectionEmptyHint>
 
-      {Array.from({ length: skeletonCount }).map((_, i) => (
-        <BookCardSkeleton key={i} />
-      ))}
-    </div>
-  );
+			{Array.from({ length: skeletonCount }).map((_, i) => (
+				<BookCardSkeleton key={i} />
+			))}
+		</div>
+	);
 }
