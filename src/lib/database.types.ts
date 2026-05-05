@@ -115,6 +115,7 @@ export type Database = {
           date_started: string | null
           description: string | null
           google_books_id: string | null
+          historical_avg_rating: number | null
           id: string
           meeting_link: string | null
           next_meeting_date: string | null
@@ -132,6 +133,7 @@ export type Database = {
           date_started?: string | null
           description?: string | null
           google_books_id?: string | null
+          historical_avg_rating?: number | null
           id?: string
           meeting_link?: string | null
           next_meeting_date?: string | null
@@ -149,6 +151,7 @@ export type Database = {
           date_started?: string | null
           description?: string | null
           google_books_id?: string | null
+          historical_avg_rating?: number | null
           id?: string
           meeting_link?: string | null
           next_meeting_date?: string | null
