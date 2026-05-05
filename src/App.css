@@ -42,6 +42,16 @@
 	);
 }
 
+@media (max-width: 768px) {
+	.app-root {
+		background-image: radial-gradient(
+			ellipse at 50% 0%,
+			rgba(125, 48, 96, 0.22) 0%,
+			transparent 85%
+		);
+	}
+}
+
 /* ── Grain Overlay ──────────────────────────────────────── */
 /* Pure CSS noise texture — no image dependency */
 .grain-overlay {
