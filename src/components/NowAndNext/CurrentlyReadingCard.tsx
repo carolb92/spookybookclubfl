@@ -6,7 +6,7 @@ import { BookCardSkeleton } from "@/components/common/BookCardSkeleton";
 import { ActionButton } from "@/components/TBR/ActionButton";
 import { parseDateString, formatDate } from "@/lib/utils";
 import type { Tables } from "@/lib/database.types";
-// import { getHighResCover } from "@/lib/utils";
+import { getHighResCover } from "@/lib/utils";
 
 interface CurrentlyReadingCardProps {
 	userId: string | null;
@@ -22,7 +22,6 @@ function addTwoWeeks(dateStr: string): Date {
 	d.setDate(d.getDate() + 14);
 	return d;
 }
-
 
 export function CurrentlyReadingCard({ userId }: CurrentlyReadingCardProps) {
 	const [book, setBook] = useState<Tables<"books"> | null>(null);
@@ -89,8 +88,7 @@ export function CurrentlyReadingCard({ userId }: CurrentlyReadingCardProps) {
 			<div className="flex justify-center lg:justify-start lg:w-1/3 lg:shrink-0">
 				{book.cover_url ? (
 					<img
-						//TODO use high res function after the reformatory
-						src={book.cover_url}
+						src={getHighResCover(book.cover_url)}
 						alt={book.title}
 						className="w-4/5 max-w-70 rounded lg:w-full lg:max-w-none"
 						style={{ boxShadow: "0 8px 32px -8px var(--spooky-crimson)" }}

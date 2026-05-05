@@ -1,8 +1,8 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+	return twMerge(clsx(inputs));
 }
 
 /**
@@ -26,8 +26,8 @@ export function formatDate(date: Date): string {
 }
 
 export function getHighResCover(url: string): string {
-  return url
-    .replace(/^http:\/\//, "https://")
-    .replace(/zoom=\d+/, "zoom=0")
-    .replace(/&edge=curl/, "");
+	return url
+		.replace(/^http:\/\//, "https://")
+		.replace(/&edge=curl/, "")
+		+ "&w=400";
 }
