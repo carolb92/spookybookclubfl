@@ -26,12 +26,28 @@ export async function markAsCurrentlyReading(bookId: string): Promise<string | n
 }
 
 export async function markAsRead(bookId: string): Promise<string | null> {
-	const { error } = await supabase
-		.from("books")
-		.update({ status: "read", date_finished: new Date().toISOString() })
-		.eq("id", bookId);
+	const [{ data: book }, { error: updateError }] = await Promise.all([
+		supabase
+			.from("books")
+			.select("next_meeting_date")
+			.eq("id", bookId)
+			.maybeSingle(),
+		supabase
+			.from("books")
+			.update({ status: "read", date_finished: new Date().toISOString() })
+			.eq("id", bookId),
+	]);
 
-	return error ? "Failed to update. Please try again." : null;
+	if (updateError) return "Failed to update. Please try again.";
+
+	if (book?.next_meeting_date) {
+		await supabase
+			.from("app_settings")
+			.update({ last_meeting_date: book.next_meeting_date })
+			.not("last_meeting_date", "is", null);
+	}
+
+	return null;
 }
 
 export async function markAsOnDeck(bookId: string): Promise<string | null> {
@@ -95,4 +111,26 @@ export async function markAsTBR(bookId: string): Promise<string | null> {
 export async function deleteBook(bookId: string): Promise<string | null> {
 	const { error } = await supabase.from("books").delete().eq("id", bookId);
 	return error ? "Failed to delete. Please try again." : null;
+}
+
+export async function fetchExcitementWeights(bookIds: string[]): Promise<Map<string, number>> {
+	const { data } = await supabase
+		.from("excitement_votes")
+		.select("book_id, rating")
+		.in("book_id", bookIds);
+
+	const map = new Map<string, number>();
+	if (!data) return map;
+
+	const totals = new Map<string, { sum: number; count: number }>();
+	for (const row of data) {
+		const entry = totals.get(row.book_id) ?? { sum: 0, count: 0 };
+		entry.sum += row.rating;
+		entry.count += 1;
+		totals.set(row.book_id, entry);
+	}
+	for (const [bookId, { sum, count }] of totals) {
+		map.set(bookId, Math.max(1, (sum / count) * Math.log(count + 1)));
+	}
+	return map;
 }

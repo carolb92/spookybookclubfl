@@ -8,6 +8,7 @@ import type { Tables } from "@/lib/database.types";
 
 interface UpNextListProps {
 	userId: string | null;
+	refreshKey?: number;
 }
 
 function addDays(date: Date, days: number): Date {
@@ -23,7 +24,9 @@ function computeDisplayDates(
 	const dates: (Date | null)[] = [];
 	let prev = baseDate;
 	for (const book of books) {
-		const stored = book.next_meeting_date ? parseDateString(book.next_meeting_date) : null;
+		const stored = book.next_meeting_date
+			? parseDateString(book.next_meeting_date)
+			: null;
 		const derived = prev ? addDays(prev, 14) : null;
 		const effective = stored ?? derived;
 		dates.push(effective);
@@ -32,9 +35,11 @@ function computeDisplayDates(
 	return dates;
 }
 
-export function UpNextList({ userId }: UpNextListProps) {
+export function UpNextList({ userId, refreshKey }: UpNextListProps) {
 	const [books, setBooks] = useState<Tables<"books">[]>([]);
-	const [currentlyReadingDate, setCurrentlyReadingDate] = useState<Date | null>(null);
+	const [currentlyReadingDate, setCurrentlyReadingDate] = useState<Date | null>(
+		null,
+	);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
@@ -77,7 +82,10 @@ export function UpNextList({ userId }: UpNextListProps) {
 			if (currentResult.data?.next_meeting_date) {
 				base = parseDateString(currentResult.data.next_meeting_date);
 			} else if (settingsResult.data?.last_meeting_date) {
-				base = addDays(parseDateString(settingsResult.data.last_meeting_date), 14);
+				base = addDays(
+					parseDateString(settingsResult.data.last_meeting_date),
+					14,
+				);
 			}
 			setCurrentlyReadingDate(base);
 
@@ -85,7 +93,7 @@ export function UpNextList({ userId }: UpNextListProps) {
 		}
 
 		fetch();
-	}, []);
+	}, [refreshKey]);
 
 	async function handleDateChange(index: number, newDate: Date) {
 		// Cascade all books from `index` forward: index → newDate, index+1 → newDate+14, etc.
@@ -100,11 +108,15 @@ export function UpNextList({ userId }: UpNextListProps) {
 		setBooks((prev) =>
 			prev.map((book) => {
 				const upd = updates.find((u) => u.id === book.id);
-				return upd ? { ...book, next_meeting_date: upd.date.toISOString() } : book;
+				return upd
+					? { ...book, next_meeting_date: upd.date.toISOString() }
+					: book;
 			}),
 		);
 
-		const results = await Promise.all(updates.map(({ id, date }) => updateMeetingDate(id, date)));
+		const results = await Promise.all(
+			updates.map(({ id, date }) => updateMeetingDate(id, date)),
+		);
 		if (results.some(Boolean)) {
 			setError("Failed to save one or more dates. Please refresh.");
 		}
@@ -124,9 +136,7 @@ export function UpNextList({ userId }: UpNextListProps) {
 
 	if (books.length === 0) {
 		return (
-			<p className="text-sm text-(--spooky-dust) italic">
-				The queue is empty.
-			</p>
+			<p className="text-sm text-(--spooky-dust) italic">The queue is empty.</p>
 		);
 	}
 
@@ -146,6 +156,7 @@ export function UpNextList({ userId }: UpNextListProps) {
 					onStatusChange={handleStatusChange}
 				/>
 			))}
+
 		</div>
 	);
 }
