@@ -26,17 +26,16 @@ export async function markAsCurrentlyReading(bookId: string): Promise<string | n
 }
 
 export async function markAsRead(bookId: string): Promise<string | null> {
-	const [{ data: book }, { error: updateError }] = await Promise.all([
-		supabase
-			.from("books")
-			.select("next_meeting_date")
-			.eq("id", bookId)
-			.maybeSingle(),
-		supabase
-			.from("books")
-			.update({ status: "read", date_finished: new Date().toISOString() })
-			.eq("id", bookId),
-	]);
+	const { data: book } = await supabase
+		.from("books")
+		.select("next_meeting_date")
+		.eq("id", bookId)
+		.maybeSingle();
+
+	const { error: updateError } = await supabase
+		.from("books")
+		.update({ status: "read", date_finished: new Date().toISOString() })
+		.eq("id", bookId);
 
 	if (updateError) return "Failed to update. Please try again.";
 
@@ -130,6 +129,7 @@ export async function fetchExcitementWeights(bookIds: string[]): Promise<Map<str
 		totals.set(row.book_id, entry);
 	}
 	for (const [bookId, { sum, count }] of totals) {
+		// avg_rating × log(votes + 1): log dampens vote-count advantage; floor of 1 keeps every book selectable
 		map.set(bookId, Math.max(1, (sum / count) * Math.log(count + 1)));
 	}
 	return map;

@@ -105,13 +105,13 @@
 
 @keyframes summon-glow-bloom {
 	0% {
-		box-shadow: 0 0 0 0 rgba(160, 61, 122, 0);
+		box-shadow: 0 0 0 0 color-mix(in srgb, var(--spooky-crimson-glow) 0%, transparent);
 	}
 	45% {
-		box-shadow: 0 0 22px 7px rgba(160, 61, 122, 0.42);
+		box-shadow: 0 0 22px 7px color-mix(in srgb, var(--spooky-crimson-glow) 42%, transparent);
 	}
 	100% {
-		box-shadow: 0 0 10px 3px rgba(160, 61, 122, 0.14);
+		box-shadow: 0 0 10px 3px color-mix(in srgb, var(--spooky-crimson-glow) 14%, transparent);
 	}
 }
 

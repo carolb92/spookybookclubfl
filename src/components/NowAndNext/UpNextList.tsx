@@ -156,7 +156,6 @@ export function UpNextList({ userId, refreshKey }: UpNextListProps) {
 					onStatusChange={handleStatusChange}
 				/>
 			))}
-
 		</div>
 	);
 }
