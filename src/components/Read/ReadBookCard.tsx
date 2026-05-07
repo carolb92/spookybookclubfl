@@ -1,7 +1,7 @@
 import type { Tables } from "@/lib/database.types";
 import { CoverPlaceholder } from "@/components/TBR/CoverPlaceholder";
 import { DevilRating } from "./DevilRating";
-import { getHighResCover } from "@/lib/utils";
+import { getHighResCover, parseDateString } from "@/lib/utils";
 
 interface ReadBookCardProps {
 	book: Tables<"books">;
@@ -17,8 +17,7 @@ interface ReadBookCardProps {
 
 function formatDevoured(dateStr: string | null): string | null {
 	if (!dateStr) return null;
-	const d = new Date(dateStr);
-	return d.toLocaleDateString("en-US", {
+	return parseDateString(dateStr).toLocaleDateString("en-US", {
 		month: "long",
 		day: "numeric",
 		year: "numeric",
@@ -36,17 +35,7 @@ export function ReadBookCard({
 
 	return (
 		<article
-			className="relative rounded-sm border border-(--spooky-border) bg-(--spooky-card) overflow-hidden group transition-all duration-300 hover:-translate-y-0.5"
-			style={
-				{
-					"--hover-glow": "0 8px 32px -4px var(--spooky-crimson)",
-				} as React.CSSProperties
-			}
-			onMouseEnter={(e) =>
-				(e.currentTarget.style.boxShadow =
-					"0 8px 32px -4px var(--spooky-crimson)")
-			}
-			onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "")}
+			className="relative rounded-sm border border-(--spooky-border) bg-(--spooky-card) overflow-hidden group transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_32px_-4px_var(--spooky-crimson)] focus-within:shadow-[0_8px_32px_-4px_var(--spooky-crimson)]"
 		>
 			{/* Cover */}
 			<div className="relative aspect-2/3 overflow-hidden">
