@@ -15,7 +15,7 @@ interface ReadBookCardProps {
 	) => void;
 }
 
-function formatDevoured(dateStr: string | null): string | null {
+function formatDateRead(dateStr: string | null): string | null {
 	if (!dateStr) return null;
 	return parseDateString(dateStr).toLocaleDateString("en-US", {
 		month: "long",
@@ -31,12 +31,10 @@ export function ReadBookCard({
 	userId,
 	onRatingChange,
 }: ReadBookCardProps) {
-	const devoured = formatDevoured(book.date_finished);
+	const dateRead = formatDateRead(book.date_finished);
 
 	return (
-		<article
-			className="relative rounded-sm border border-(--spooky-border) bg-(--spooky-card) overflow-hidden group transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_32px_-4px_var(--spooky-crimson)] focus-within:shadow-[0_8px_32px_-4px_var(--spooky-crimson)]"
-		>
+		<article className="relative rounded-sm border border-(--spooky-border) bg-(--spooky-card) overflow-hidden group transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_32px_-4px_var(--spooky-crimson)] focus-within:shadow-[0_8px_32px_-4px_var(--spooky-crimson)]">
 			{/* Cover */}
 			<div className="relative aspect-2/3 overflow-hidden">
 				{book.cover_url ? (
@@ -65,9 +63,9 @@ export function ReadBookCard({
 
 			{/* Below-cover metadata */}
 			<div className="px-3 pt-2 pb-3 flex flex-col gap-2 items-center border-t border-(--spooky-border)/50">
-				{devoured && (
+				{dateRead && (
 					<span className="font-sans text-[10px] uppercase tracking-widest text-(--spooky-dust)/50">
-						{devoured}
+						{dateRead}
 					</span>
 				)}
 				<DevilRating
