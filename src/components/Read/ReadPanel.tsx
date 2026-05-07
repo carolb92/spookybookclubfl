@@ -44,31 +44,42 @@ export function ReadPanel() {
 				return;
 			}
 
-			const [avgResults, userRatingsResult] = await Promise.all([
-				Promise.all(
-					booksData.map((b) =>
-						supabase.rpc("get_average_rating", { book_id: b.id }),
-					),
-				),
+			const bookIds = booksData.map((b) => b.id);
+
+			const [allRatingsResult, userRatingsResult] = await Promise.all([
+				supabase
+					.from("book_ratings")
+					.select("book_id, rating")
+					.in("book_id", bookIds),
 				userId
 					? supabase
 							.from("book_ratings")
 							.select("book_id, rating")
 							.eq("user_id", userId)
+							.in("book_id", bookIds)
 					: Promise.resolve({
 							data: [] as { book_id: string; rating: number }[],
 						}),
 			]);
 
+			const avgMap = new Map<string, { sum: number; count: number }>();
+			for (const row of allRatingsResult.data ?? []) {
+				const prev = avgMap.get(row.book_id) ?? { sum: 0, count: 0 };
+				avgMap.set(row.book_id, { sum: prev.sum + row.rating, count: prev.count + 1 });
+			}
+
 			const userRatingMap = new Map(
 				(userRatingsResult.data ?? []).map((v) => [v.book_id, v.rating]),
 			);
 
-			const booksWithRatings: BookWithRating[] = booksData.map((book, i) => ({
-				...book,
-				avgRating: avgResults[i].data ?? null,
-				userRating: userRatingMap.get(book.id) ?? null,
-			}));
+			const booksWithRatings: BookWithRating[] = booksData.map((book) => {
+				const stats = avgMap.get(book.id);
+				return {
+					...book,
+					avgRating: stats ? stats.sum / stats.count : null,
+					userRating: userRatingMap.get(book.id) ?? null,
+				};
+			});
 
 			setBooks(booksWithRatings);
 			setIsLoading(false);
