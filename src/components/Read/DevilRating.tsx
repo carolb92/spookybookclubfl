@@ -42,20 +42,22 @@ export function DevilRating({
 		setIsSaving(true);
 
 		try {
+			let writeError;
 			if (shouldToggleOff) {
-				await supabase
+				({ error: writeError } = await supabase
 					.from("book_ratings")
 					.delete()
 					.eq("book_id", bookId)
-					.eq("user_id", userId!);
+					.eq("user_id", userId!));
 			} else {
-				await supabase
+				({ error: writeError } = await supabase
 					.from("book_ratings")
 					.upsert(
 						{ book_id: bookId, user_id: userId!, rating },
 						{ onConflict: "book_id,user_id" },
-					);
+					));
 			}
+			if (writeError) throw writeError;
 
 			const { data: newAvg } = await supabase.rpc("get_average_rating", {
 				book_id: bookId,
