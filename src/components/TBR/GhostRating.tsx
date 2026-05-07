@@ -92,7 +92,7 @@ export function GhostRating({
 	if (!userId) {
 		return (
 			<div className="flex flex-col gap-1.5 items-center">
-				<span className="font-section text-xs uppercase tracking-widest text-(--spooky-crimson)">
+				<span className="font-section text-xs uppercase tracking-widest text-(--spooky-crimson) font-semibold">
 					Hype
 				</span>
 				<AuthModal action="rate your excitement level">
@@ -118,7 +118,7 @@ export function GhostRating({
 
 	return (
 		<div className="flex flex-col gap-1.5 items-center">
-			<span className="font-section text-xs uppercase tracking-widest text-(--spooky-crimson)">
+			<span className="font-section text-xs uppercase tracking-widest text-(--spooky-crimson) font-semibold">
 				Hype
 			</span>
 			<div
