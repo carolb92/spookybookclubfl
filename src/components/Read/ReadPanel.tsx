@@ -65,7 +65,10 @@ export function ReadPanel() {
 			const avgMap = new Map<string, { sum: number; count: number }>();
 			for (const row of allRatingsResult.data ?? []) {
 				const prev = avgMap.get(row.book_id) ?? { sum: 0, count: 0 };
-				avgMap.set(row.book_id, { sum: prev.sum + row.rating, count: prev.count + 1 });
+				avgMap.set(row.book_id, {
+					sum: prev.sum + row.rating,
+					count: prev.count + 1,
+				});
 			}
 
 			const userRatingMap = new Map(
@@ -144,7 +147,7 @@ export function ReadPanel() {
 					No books read yet — the coven is still warming up.
 				</SectionEmptyHint>
 			) : (
-				<div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+				<div className="grid grid-cols-2 md:grid-cols-3 gap-3 xl:grid-cols-4">
 					{books.map((book) => (
 						<ReadBookCard
 							key={book.id}
