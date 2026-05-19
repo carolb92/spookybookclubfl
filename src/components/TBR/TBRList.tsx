@@ -16,6 +16,16 @@ import type { Tables } from "@/lib/database.types";
 
 const PAGE_SIZE = 10;
 
+function sortTBR(a: BookWithStats, b: BookWithStats): number {
+	if (a.avgExcitement !== null && b.avgExcitement !== null) {
+		return b.avgExcitement - a.avgExcitement;
+	}
+	if (a.avgExcitement !== null) return -1;
+	if (b.avgExcitement !== null) return 1;
+	// Both unvoted: newest addition first
+	return (b.date_added ?? "").localeCompare(a.date_added ?? "");
+}
+
 type BookWithStats = Tables<"books"> & {
 	avgExcitement: number | null;
 	userVote: number | null;
@@ -23,10 +33,10 @@ type BookWithStats = Tables<"books"> & {
 
 interface TBRListProps {
 	onEmpty: () => void;
-	refetchKey: number;
+	pendingBook: Tables<"books"> | null;
 }
 
-export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
+export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 	const { session } = useAuth();
 	const [books, setBooks] = useState<BookWithStats[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
@@ -60,38 +70,44 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 				return;
 			}
 
-			const [avgResults, userVotesResult] = await Promise.all([
-				Promise.all(
-					booksData.map((b) =>
-						supabase.rpc("get_average_excitement", { book_id: b.id }),
-					),
-				),
+			const bookIds = booksData.map((b) => b.id);
+
+			const [allVotesResult, userVotesResult] = await Promise.all([
+				supabase
+					.from("excitement_votes")
+					.select("book_id, rating")
+					.in("book_id", bookIds),
 				userId
 					? supabase
 							.from("excitement_votes")
 							.select("book_id, rating")
 							.eq("user_id", userId)
+							.in("book_id", bookIds)
 					: Promise.resolve({
 							data: [] as { book_id: string; rating: number }[],
 						}),
 			]);
 
+			const avgMap = new Map<string, { sum: number; count: number }>();
+			for (const row of allVotesResult.data ?? []) {
+				const prev = avgMap.get(row.book_id) ?? { sum: 0, count: 0 };
+				avgMap.set(row.book_id, { sum: prev.sum + row.rating, count: prev.count + 1 });
+			}
+
 			const userVoteMap = new Map(
 				(userVotesResult.data ?? []).map((v) => [v.book_id, v.rating]),
 			);
 
-			const booksWithStats: BookWithStats[] = booksData.map((book, i) => ({
-				...book,
-				avgExcitement: avgResults[i].data ?? null,
-				userVote: userVoteMap.get(book.id) ?? null,
-			}));
-
-			booksWithStats.sort((a, b) => {
-				if (a.avgExcitement === null && b.avgExcitement === null) return 0;
-				if (a.avgExcitement === null) return 1;
-				if (b.avgExcitement === null) return -1;
-				return b.avgExcitement - a.avgExcitement;
+			const booksWithStats: BookWithStats[] = booksData.map((book) => {
+				const stats = avgMap.get(book.id);
+				return {
+					...book,
+					avgExcitement: stats ? stats.sum / stats.count : null,
+					userVote: userVoteMap.get(book.id) ?? null,
+				};
 			});
+
+			booksWithStats.sort(sortTBR);
 
 			const newTotalPages = Math.ceil(booksWithStats.length / PAGE_SIZE);
 			if (
@@ -107,7 +123,24 @@ export function TBRList({ onEmpty, refetchKey }: TBRListProps) {
 		}
 
 		fetchBooks();
-	}, [session, userId, onEmpty, refetchKey]);
+	}, [userId, onEmpty]);
+
+	useEffect(() => {
+		if (!pendingBook) return;
+		setBooks((prev) => {
+			const withNew: BookWithStats[] = [
+				...prev,
+				{ ...pendingBook, avgExcitement: null, userVote: null },
+			];
+			withNew.sort(sortTBR);
+			const newTotalPages = Math.ceil(withNew.length / PAGE_SIZE);
+			if (prevTotalPagesRef.current > 0 && newTotalPages > prevTotalPagesRef.current) {
+				setCurrentPage(newTotalPages);
+			}
+			prevTotalPagesRef.current = newTotalPages;
+			return withNew;
+		});
+	}, [pendingBook]);
 
 	function handleVoteChange(
 		bookId: string,

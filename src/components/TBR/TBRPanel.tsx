@@ -6,15 +6,16 @@ import { AuthModal } from "@/components/auth/AuthModal";
 import { TBRList } from "./TBRList";
 import { useAuth } from "@/contexts/useAuth";
 import { cn } from "@/lib/utils";
+import type { Tables } from "@/lib/database.types";
 
 export function TBRPanel() {
 	const { session } = useAuth();
 	const [isEmpty, setIsEmpty] = useState(false);
-	const [refetchKey, setRefetchKey] = useState(0);
+	const [pendingBook, setPendingBook] = useState<Tables<"books"> | null>(null);
 	const handleEmpty = useCallback(() => setIsEmpty(true), []);
-	const handleBookAdded = useCallback(() => {
+	const handleBookAdded = useCallback((book: Tables<"books">) => {
 		setIsEmpty(false);
-		setRefetchKey((k) => k + 1);
+		setPendingBook(book);
 	}, []);
 
 	const addButton = (
@@ -40,7 +41,7 @@ export function TBRPanel() {
 					<AuthModal action="add books">{addButton}</AuthModal>
 				)}
 			</div>
-			<TBRList onEmpty={handleEmpty} refetchKey={refetchKey} />
+			<TBRList onEmpty={handleEmpty} pendingBook={pendingBook} />
 
 			{isEmpty && (
 				<div className="flex flex-col items-center justify-center gap-y-5 pt-4">
