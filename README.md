@@ -1,73 +1,54 @@
-# React + TypeScript + Vite
+# Spooky Book Club FL
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A web app for tracking the past and current reads and TBR list of a horror book club. Members can add books to the TBR queue, vote on what to read next, rate finished books, and let the "chaos algorithm" decide when picking the next book.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### Now & Next
 
-## React Compiler
+Displays the book the club is currently reading, along with a description, page count, and the date of the next meeting. Authenticated members see a direct link to join the meeting.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The **Up Next** section shows the queue of books on deck. A "WTF should we read next?" button randomly selects a book from the TBR pile using a weighted algorithm — books with higher hype scores are more likely to be chosen.
 
-## Expanding the ESLint configuration
+### TBR (To Be Read)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+A running list of books the club is considering. Each entry expands to show a cover, description, page count, and action panel. Authenticated members can use a book's action panel to move it to Currently Reading or the Up Next queue, rate their hype level on a scale of 1-5 👻 ghosts, or remove the book from the TBR list.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Books are added via a search modal backed by the Google Books API, with debounced live search and a preview step before saving.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Read
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+A grid view of every book the club has finished, sorted by date read. Authenticated members can rate finished books with 😈 devils (1–5). Each card shows the member's own rating alongside the club average.
+
+### Auth
+
+Access is gated by an invite code. Members enter the code and email to receive a magic link — no password required. Interactive features (rating, adding books, voting) prompt unauthenticated visitors to log in.
+
+## Tech Stack
+
+| Layer               | Technology                                             |
+| ------------------- | ------------------------------------------------------ |
+| Framework           | React 19 + TypeScript                                  |
+| Build               | Vite                                                   |
+| Styling             | Tailwind CSS v4                                        |
+| Components          | ShadCN                                                 |
+| Backend / Auth / DB | Supabase (PostgreSQL, magic link auth, Edge Functions) |
+| Book Search         | Google Books API                                       |
+
+## Screenshots
+
+_Coming soon._
+
+## Local Development
+
+Fill in Supabase credentials in `.env.local`:
+
+```
+VITE_PUBLIC_SUPABASE_URL=
+VITE_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
