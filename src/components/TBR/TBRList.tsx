@@ -16,6 +16,16 @@ import type { Tables } from "@/lib/database.types";
 
 const PAGE_SIZE = 10;
 
+function sortTBR(a: BookWithStats, b: BookWithStats): number {
+	if (a.avgExcitement !== null && b.avgExcitement !== null) {
+		return b.avgExcitement - a.avgExcitement;
+	}
+	if (a.avgExcitement !== null) return -1;
+	if (b.avgExcitement !== null) return 1;
+	// Both unvoted: newest addition first
+	return (b.date_added ?? "").localeCompare(a.date_added ?? "");
+}
+
 type BookWithStats = Tables<"books"> & {
 	avgExcitement: number | null;
 	userVote: number | null;
@@ -97,12 +107,7 @@ export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 				};
 			});
 
-			booksWithStats.sort((a, b) => {
-				if (a.avgExcitement === null && b.avgExcitement === null) return 0;
-				if (a.avgExcitement === null) return 1;
-				if (b.avgExcitement === null) return -1;
-				return b.avgExcitement - a.avgExcitement;
-			});
+			booksWithStats.sort(sortTBR);
 
 			const newTotalPages = Math.ceil(booksWithStats.length / PAGE_SIZE);
 			if (
@@ -127,12 +132,7 @@ export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 				...prev,
 				{ ...pendingBook, avgExcitement: null, userVote: null },
 			];
-			withNew.sort((a, b) => {
-				if (a.avgExcitement === null && b.avgExcitement === null) return 0;
-				if (a.avgExcitement === null) return 1;
-				if (b.avgExcitement === null) return -1;
-				return b.avgExcitement - a.avgExcitement;
-			});
+			withNew.sort(sortTBR);
 			const newTotalPages = Math.ceil(withNew.length / PAGE_SIZE);
 			if (prevTotalPagesRef.current > 0 && newTotalPages > prevTotalPagesRef.current) {
 				setCurrentPage(newTotalPages);
