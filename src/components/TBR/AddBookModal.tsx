@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import type { Tables } from "@/lib/database.types";
 import {
 	Dialog,
 	DialogContent,
@@ -18,7 +19,7 @@ export function AddBookModal({
 	onBookAdded,
 }: {
 	children: React.ReactNode;
-	onBookAdded?: () => void;
+	onBookAdded?: (book: Tables<"books">) => void;
 }) {
 	const [view, setView] = useState<ModalView>("search");
 	const [selectedBook, setSelectedBook] = useState<GoogleBook | null>(null);

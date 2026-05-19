@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { type GoogleBook } from "@/services/searchBooks";
 import { supabase } from "@/lib/supabaseClient";
 import { CoverPlaceholder } from "./CoverPlaceholder";
+import type { Tables } from "@/lib/database.types";
 
 export function BookPreview({
 	book,
@@ -13,7 +14,7 @@ export function BookPreview({
 }: {
 	book: GoogleBook;
 	onBack: () => void;
-	onBookAdded?: () => void;
+	onBookAdded?: (book: Tables<"books">) => void;
 }) {
 	const [isAdding, setIsAdding] = useState(false);
 	const [addError, setAddError] = useState<string | null>(null);
@@ -27,16 +28,20 @@ export function BookPreview({
 		setIsAdding(true);
 		setAddError(null);
 		try {
-			const { error } = await supabase.from("books").insert({
-				title,
-				author: authorLine,
-				cover_url: coverUrl ?? null,
-				description: description ?? null,
-				page_count: pageCount ?? null,
-				google_books_id: book.id,
-				status: "tbr",
-				date_added: new Date().toISOString(),
-			});
+			const { data: inserted, error } = await supabase
+				.from("books")
+				.insert({
+					title,
+					author: authorLine,
+					cover_url: coverUrl ?? null,
+					description: description ?? null,
+					page_count: pageCount ?? null,
+					google_books_id: book.id,
+					status: "tbr",
+					date_added: new Date().toISOString(),
+				})
+				.select()
+				.single();
 			if (error) {
 				if (error.code === "23505") {
 					setAddError("This book is already in your TBR list.");
@@ -44,7 +49,7 @@ export function BookPreview({
 				}
 				throw error;
 			}
-			onBookAdded?.();
+			onBookAdded?.(inserted);
 			closeRef.current?.click();
 		} catch {
 			setAddError("Failed to add book. Please try again.");
