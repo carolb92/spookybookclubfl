@@ -44,6 +44,7 @@ export function Header({ className }: HeaderProps) {
 								"border border-(--spooky-crimson)/60 hover:border-(--spooky-crimson)",
 								"transition-all duration-150 cursor-pointer",
 							)}
+							type="button"
 						>
 							Sign in
 						</button>
