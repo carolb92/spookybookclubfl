@@ -28,6 +28,7 @@ export function SearchResultItem({
 						src={thumb}
 						alt={`${title} cover thumbnail`}
 						aria-hidden="true"
+						loading="lazy"
 						className="h-14 w-10 rounded-sm object-cover shadow-md"
 					/>
 				) : (

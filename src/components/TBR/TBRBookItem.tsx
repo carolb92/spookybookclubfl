@@ -32,7 +32,6 @@ export function TBRBookItem({
 	onDelete,
 	onStatusChange,
 }: TBRBookItemProps) {
-
 	return (
 		<AccordionItem
 			value={book.id}
@@ -65,6 +64,7 @@ export function TBRBookItem({
 								<img
 									src={book.cover_url}
 									alt={book.title}
+									loading="lazy"
 									className="rounded object-contain md:w-auto"
 									style={{
 										boxShadow: "0 4px 16px -4px var(--spooky-crimson)",
