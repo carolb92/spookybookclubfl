@@ -64,6 +64,12 @@ export function GhostRating({
 					.insert({ book_id: bookId, user_id: userId!, rating });
 			}
 
+			// get_average_excitement returns Postgres `numeric`. For scalar RPCs,
+			// PostgREST appears to serialize this as a JS number (not a string as it
+			// does for `numeric` columns in RETURNS TABLE functions). Empirically
+			// confirmed correct across integer and decimal averages (e.g. 4.5, 3.5,
+			// 2.5). If a `.toFixed is not a function` crash surfaces in production,
+			// cast the RPC return type to `float8` in the DB function definition.
 			const { data: newAvg } = await supabase.rpc("get_average_excitement", {
 				book_id: bookId,
 			});
