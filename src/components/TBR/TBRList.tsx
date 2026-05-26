@@ -85,6 +85,13 @@ export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 						}),
 			]);
 
+			if (avgResult.error) {
+				console.error("Failed to fetch excitement averages:", avgResult.error);
+				setFetchError("Couldn't load the TBR list. Please refresh.");
+				setIsLoading(false);
+				return;
+			}
+
 			const avgMap = new Map(
 				(avgResult.data ?? []).map((r) => [r.book_id, r.avg_excitement]),
 			);
@@ -120,6 +127,7 @@ export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 	useEffect(() => {
 		if (!pendingBook) return;
 		setBooks((prev) => {
+			if (prev.some((b) => b.id === pendingBook.id)) return prev;
 			const withNew: BookWithStats[] = [
 				...prev,
 				{ ...pendingBook, avgExcitement: null, userVote: null },
@@ -140,11 +148,13 @@ export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 		newAvg: number | null,
 	) {
 		setBooks((prev) =>
-			prev.map((b) =>
-				b.id === bookId
-					? { ...b, userVote: newVote, avgExcitement: newAvg }
-					: b,
-			),
+			prev
+				.map((b) =>
+					b.id === bookId
+						? { ...b, userVote: newVote, avgExcitement: newAvg }
+						: b,
+				)
+				.sort(sortTBR),
 		);
 	}
 
