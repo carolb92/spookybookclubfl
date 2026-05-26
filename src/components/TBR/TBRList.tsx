@@ -72,11 +72,8 @@ export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 
 			const bookIds = booksData.map((b) => b.id);
 
-			const [allVotesResult, userVotesResult] = await Promise.all([
-				supabase
-					.from("excitement_votes")
-					.select("book_id, rating")
-					.in("book_id", bookIds),
+			const [avgResult, userVotesResult] = await Promise.all([
+				supabase.rpc("get_average_excitement_batch", { book_ids: bookIds }),
 				userId
 					? supabase
 							.from("excitement_votes")
@@ -88,24 +85,26 @@ export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 						}),
 			]);
 
-			const avgMap = new Map<string, { sum: number; count: number }>();
-			for (const row of allVotesResult.data ?? []) {
-				const prev = avgMap.get(row.book_id) ?? { sum: 0, count: 0 };
-				avgMap.set(row.book_id, { sum: prev.sum + row.rating, count: prev.count + 1 });
+			if (avgResult.error || ("error" in userVotesResult && userVotesResult.error)) {
+				console.error("Failed to fetch excitement data:", avgResult.error ?? ("error" in userVotesResult ? userVotesResult.error : null));
+				setFetchError("Couldn't load the TBR list. Please refresh.");
+				setIsLoading(false);
+				return;
 			}
+
+			const avgMap = new Map(
+				(avgResult.data ?? []).map((r) => [r.book_id, r.avg_excitement]),
+			);
 
 			const userVoteMap = new Map(
 				(userVotesResult.data ?? []).map((v) => [v.book_id, v.rating]),
 			);
 
-			const booksWithStats: BookWithStats[] = booksData.map((book) => {
-				const stats = avgMap.get(book.id);
-				return {
-					...book,
-					avgExcitement: stats ? stats.sum / stats.count : null,
-					userVote: userVoteMap.get(book.id) ?? null,
-				};
-			});
+			const booksWithStats: BookWithStats[] = booksData.map((book) => ({
+				...book,
+				avgExcitement: avgMap.get(book.id) ?? null,
+				userVote: userVoteMap.get(book.id) ?? null,
+			}));
 
 			booksWithStats.sort(sortTBR);
 
@@ -122,12 +121,17 @@ export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 			setIsLoading(false);
 		}
 
-		fetchBooks();
+		fetchBooks().catch((err) => {
+			console.error("Unexpected error in fetchBooks:", err);
+			setFetchError("Couldn't load the TBR list. Please refresh.");
+			setIsLoading(false);
+		});
 	}, [userId, onEmpty]);
 
 	useEffect(() => {
 		if (!pendingBook) return;
 		setBooks((prev) => {
+			if (prev.some((b) => b.id === pendingBook.id)) return prev;
 			const withNew: BookWithStats[] = [
 				...prev,
 				{ ...pendingBook, avgExcitement: null, userVote: null },
@@ -148,11 +152,13 @@ export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 		newAvg: number | null,
 	) {
 		setBooks((prev) =>
-			prev.map((b) =>
-				b.id === bookId
-					? { ...b, userVote: newVote, avgExcitement: newAvg }
-					: b,
-			),
+			prev
+				.map((b) =>
+					b.id === bookId
+						? { ...b, userVote: newVote, avgExcitement: newAvg }
+						: b,
+				)
+				.sort(sortTBR),
 		);
 	}
 

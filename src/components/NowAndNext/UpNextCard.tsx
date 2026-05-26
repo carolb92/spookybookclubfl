@@ -67,6 +67,7 @@ export function UpNextCard({
 					<img
 						src={book.cover_url}
 						alt={book.title}
+						loading="lazy"
 						className="w-full rounded object-cover"
 						style={{ boxShadow: "0 4px 12px -4px var(--spooky-crimson)" }}
 					/>
