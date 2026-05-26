@@ -249,6 +249,13 @@ export type Database = {
     }
     Functions: {
       get_average_excitement: { Args: { book_id: string }; Returns: number }
+      get_average_excitement_batch: {
+        Args: { book_ids: string[] }
+        Returns: {
+          avg_excitement: number
+          book_id: string
+        }[]
+      }
       get_average_rating: { Args: { book_id: string }; Returns: number }
       get_book_with_stats: {
         Args: { book_id: string }
