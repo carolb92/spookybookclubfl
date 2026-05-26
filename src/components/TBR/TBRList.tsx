@@ -85,8 +85,8 @@ export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 						}),
 			]);
 
-			if (avgResult.error) {
-				console.error("Failed to fetch excitement averages:", avgResult.error);
+			if (avgResult.error || ("error" in userVotesResult && userVotesResult.error)) {
+				console.error("Failed to fetch excitement data:", avgResult.error ?? ("error" in userVotesResult ? userVotesResult.error : null));
 				setFetchError("Couldn't load the TBR list. Please refresh.");
 				setIsLoading(false);
 				return;
@@ -121,7 +121,11 @@ export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 			setIsLoading(false);
 		}
 
-		fetchBooks();
+		fetchBooks().catch((err) => {
+			console.error("Unexpected error in fetchBooks:", err);
+			setFetchError("Couldn't load the TBR list. Please refresh.");
+			setIsLoading(false);
+		});
 	}, [userId, onEmpty]);
 
 	useEffect(() => {
