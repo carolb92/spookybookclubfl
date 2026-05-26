@@ -252,7 +252,7 @@ export type Database = {
       get_average_excitement_batch: {
         Args: { book_ids: string[] }
         Returns: {
-          avg_excitement: number
+          avg_excitement: number  // float8 — serialized as JSON number by PostgREST
           book_id: string
         }[]
       }
