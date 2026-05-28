@@ -24,6 +24,10 @@ A grid view of every book the club has finished, sorted by date read. Authentica
 
 Access is gated by an invite code. Members enter the code and email to receive a magic link — no password required. Interactive features (rating, adding books, voting) prompt unauthenticated visitors to log in.
 
+### Demo
+
+Some features require sign-in. This [Loom walkthrough](https://www.loom.com/share/146932929e1d4fed817678115b378634) shows them all.
+
 ## Tech Stack
 
 | Layer               | Technology                                             |
@@ -34,10 +38,6 @@ Access is gated by an invite code. Members enter the code and email to receive a
 | Components          | ShadCN                                                 |
 | Backend / Auth / DB | Supabase (PostgreSQL, magic link auth, Edge Functions) |
 | Book Search         | Google Books API                                       |
-
-## Screenshots
-
-_Coming soon._
 
 ## Local Development
 
