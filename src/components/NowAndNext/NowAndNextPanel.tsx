@@ -14,7 +14,11 @@ export function NowAndNextPanel() {
 			{/* Currently reading */}
 			<section>
 				<SectionLabel>Now Reading</SectionLabel>
-				<CurrentlyReadingCard userId={userId} />
+				<CurrentlyReadingCard
+					userId={userId}
+					refreshKey={refreshKey}
+					onDateChange={() => setRefreshKey((k) => k + 1)}
+				/>
 			</section>
 
 			{/* Divider */}
@@ -23,7 +27,7 @@ export function NowAndNextPanel() {
 			{/* Up next */}
 			<section>
 				<SectionLabel>Up Next</SectionLabel>
-				<UpNextList userId={userId} refreshKey={refreshKey} />
+				<UpNextList userId={userId} refreshKey={refreshKey} onStatusChange={() => setRefreshKey((k) => k + 1)} />
 				<SummonButton userId={userId} onConfirm={() => setRefreshKey((k) => k + 1)} />
 			</section>
 		</div>

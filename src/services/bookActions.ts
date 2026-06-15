@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
-import { parseDateString } from "@/lib/utils";
+import { parseDateString, addDays, localISODate } from "@/lib/utils";
 
 export async function getCurrentlyReadingBook(): Promise<{
 	data: { id: string; title: string } | null;
@@ -66,7 +66,7 @@ export async function markAsOnDeck(bookId: string): Promise<string | null> {
 	if (anchor?.next_meeting_date) {
 		const d = parseDateString(anchor.next_meeting_date);
 		d.setDate(d.getDate() + 14);
-		nextMeetingDate = d.toISOString();
+		nextMeetingDate = localISODate(d);
 	} else {
 		// No anchor in queue — fall back to app_settings: currently_reading ≈ last_meeting+14,
 		// so this book ≈ last_meeting+28
@@ -78,7 +78,7 @@ export async function markAsOnDeck(bookId: string): Promise<string | null> {
 		if (settings?.last_meeting_date) {
 			const d = parseDateString(settings.last_meeting_date);
 			d.setDate(d.getDate() + 28);
-			nextMeetingDate = d.toISOString();
+			nextMeetingDate = localISODate(d);
 		}
 	}
 
@@ -93,9 +93,43 @@ export async function markAsOnDeck(bookId: string): Promise<string | null> {
 export async function updateMeetingDate(bookId: string, date: Date): Promise<string | null> {
 	const { error } = await supabase
 		.from("books")
-		.update({ next_meeting_date: date.toISOString() })
+		.update({ next_meeting_date: localISODate(date) })
 		.eq("id", bookId);
 	return error ? "Failed to update. Please try again." : null;
+}
+
+export async function cascadeOnDeckDates(oldBase: Date | null, newBase: Date): Promise<string | null> {
+	const { data: books, error } = await supabase
+		.from("books")
+		.select("id, next_meeting_date")
+		.eq("status", "on_deck")
+		.order("next_meeting_date", { ascending: true, nullsFirst: false });
+
+	if (error) return "Failed to update meeting dates.";
+	if (!books || books.length === 0) return null;
+
+	// When oldBase is null (first-ever date being set), delta is 0 — dated books are
+	// left unchanged and undated books get filled in from the chain.
+	const effectiveOldBase = oldBase ?? newBase;
+	const deltaDays = Math.round(
+		(newBase.getTime() - effectiveOldBase.getTime()) / (1000 * 60 * 60 * 24),
+	);
+
+	let prevEffective = effectiveOldBase;
+	const updates: Array<{ id: string; date: Date }> = [];
+
+	for (const book of books) {
+		const effectiveOldDate = book.next_meeting_date
+			? parseDateString(book.next_meeting_date)
+			: addDays(prevEffective, 14);
+		updates.push({ id: book.id, date: addDays(effectiveOldDate, deltaDays) });
+		prevEffective = effectiveOldDate;
+	}
+
+	const results = await Promise.all(
+		updates.map(({ id, date }) => updateMeetingDate(id, date)),
+	);
+	return results.find(Boolean) ?? null;
 }
 
 export async function markAsTBR(bookId: string): Promise<string | null> {

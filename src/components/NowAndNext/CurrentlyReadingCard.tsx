@@ -4,12 +4,16 @@ import { BookDescription } from "@/components/common/BookDescription";
 import { CoverPlaceholder } from "@/components/TBR/CoverPlaceholder";
 import { BookCardSkeleton } from "@/components/common/BookCardSkeleton";
 import { ActionButton } from "@/components/TBR/ActionButton";
-import { parseDateString, formatDate } from "@/lib/utils";
+import { MeetingDatePicker } from "@/components/common/MeetingDatePicker";
+import { updateMeetingDate, cascadeOnDeckDates } from "@/services/bookActions";
+import { parseDateString, addDays, localISODate } from "@/lib/utils";
 import type { Tables } from "@/lib/database.types";
 import { getHighResCover } from "@/lib/utils";
 
 interface CurrentlyReadingCardProps {
 	userId: string | null;
+	refreshKey?: number;
+	onDateChange?: () => void;
 }
 
 type AppSettings = Pick<
@@ -17,13 +21,8 @@ type AppSettings = Pick<
 	"meeting_link" | "last_meeting_date"
 >;
 
-function addTwoWeeks(dateStr: string): Date {
-	const d = parseDateString(dateStr);
-	d.setDate(d.getDate() + 14);
-	return d;
-}
 
-export function CurrentlyReadingCard({ userId }: CurrentlyReadingCardProps) {
+export function CurrentlyReadingCard({ userId, refreshKey, onDateChange }: CurrentlyReadingCardProps) {
 	const [book, setBook] = useState<Tables<"books"> | null>(null);
 	const [settings, setSettings] = useState<AppSettings | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
@@ -60,7 +59,29 @@ export function CurrentlyReadingCard({ userId }: CurrentlyReadingCardProps) {
 		}
 
 		fetch();
-	}, []);
+	}, [refreshKey]);
+
+	async function handleDateChange(newDate: Date) {
+		if (!book) return;
+		const prevDate = book.next_meeting_date;
+		const oldBase = book.next_meeting_date
+			? parseDateString(book.next_meeting_date)
+			: settings?.last_meeting_date
+				? addDays(parseDateString(settings.last_meeting_date), 14)
+				: null;
+		setBook({ ...book, next_meeting_date: localISODate(newDate) });
+
+		const [err1, err2] = await Promise.all([
+			updateMeetingDate(book.id, newDate),
+			cascadeOnDeckDates(oldBase, newDate),
+		]);
+
+		if (err1 || err2) {
+			setBook((prev) => prev ? { ...prev, next_meeting_date: prevDate } : prev);
+		} else {
+			onDateChange?.();
+		}
+	}
 
 	if (isLoading) return <BookCardSkeleton tall />;
 
@@ -76,10 +97,10 @@ export function CurrentlyReadingCard({ userId }: CurrentlyReadingCardProps) {
 		);
 	}
 
-	const nextMeetingDate = book.next_meeting_date
-		? formatDate(parseDateString(book.next_meeting_date))
+	const meetingDate: Date | null = book.next_meeting_date
+		? parseDateString(book.next_meeting_date)
 		: settings?.last_meeting_date
-			? formatDate(addTwoWeeks(settings.last_meeting_date))
+			? addDays(parseDateString(settings.last_meeting_date), 14)
 			: null;
 
 	return (
@@ -120,13 +141,10 @@ export function CurrentlyReadingCard({ userId }: CurrentlyReadingCardProps) {
 					<h3 className="font-section text-xl font-semibold tracking-widest uppercase text-(--spooky-crimson) max-sm:text-center">
 						Yap Session
 					</h3>
-					{nextMeetingDate ? (
-						<p className="text-sm text-(--spooky-parchment)">
-							{nextMeetingDate}
-						</p>
-					) : (
-						<p className="text-sm text-(--spooky-dust) italic">Date TBD</p>
-					)}
+					<MeetingDatePicker
+						date={meetingDate}
+						onChange={userId ? handleDateChange : undefined}
+					/>
 					{userId && settings?.meeting_link && (
 						<div>
 							<ActionButton asChild className="mt-1">
