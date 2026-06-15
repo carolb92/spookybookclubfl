@@ -9,6 +9,7 @@ import type { Tables } from "@/lib/database.types";
 interface UpNextListProps {
 	userId: string | null;
 	refreshKey?: number;
+	onStatusChange?: () => void;
 }
 
 function addDays(date: Date, days: number): Date {
@@ -35,7 +36,7 @@ function computeDisplayDates(
 	return dates;
 }
 
-export function UpNextList({ userId, refreshKey }: UpNextListProps) {
+export function UpNextList({ userId, refreshKey, onStatusChange }: UpNextListProps) {
 	const [books, setBooks] = useState<Tables<"books">[]>([]);
 	const [currentlyReadingDate, setCurrentlyReadingDate] = useState<Date | null>(
 		null,
@@ -128,6 +129,7 @@ export function UpNextList({ userId, refreshKey }: UpNextListProps) {
 
 	function handleStatusChange(bookId: string) {
 		setBooks((prev) => prev.filter((b) => b.id !== bookId));
+		onStatusChange?.();
 	}
 
 	if (isLoading) return <BookCardSkeleton />;

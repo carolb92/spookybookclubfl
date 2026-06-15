@@ -10,6 +10,7 @@ import { getHighResCover } from "@/lib/utils";
 
 interface CurrentlyReadingCardProps {
 	userId: string | null;
+	refreshKey?: number;
 }
 
 type AppSettings = Pick<
@@ -23,7 +24,7 @@ function addTwoWeeks(dateStr: string): Date {
 	return d;
 }
 
-export function CurrentlyReadingCard({ userId }: CurrentlyReadingCardProps) {
+export function CurrentlyReadingCard({ userId, refreshKey }: CurrentlyReadingCardProps) {
 	const [book, setBook] = useState<Tables<"books"> | null>(null);
 	const [settings, setSettings] = useState<AppSettings | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
@@ -60,7 +61,7 @@ export function CurrentlyReadingCard({ userId }: CurrentlyReadingCardProps) {
 		}
 
 		fetch();
-	}, []);
+	}, [refreshKey]);
 
 	if (isLoading) return <BookCardSkeleton tall />;
 
