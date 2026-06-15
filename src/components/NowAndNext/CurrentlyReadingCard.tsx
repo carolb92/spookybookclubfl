@@ -6,7 +6,7 @@ import { BookCardSkeleton } from "@/components/common/BookCardSkeleton";
 import { ActionButton } from "@/components/TBR/ActionButton";
 import { MeetingDatePicker } from "@/components/common/MeetingDatePicker";
 import { updateMeetingDate, cascadeOnDeckDates } from "@/services/bookActions";
-import { parseDateString } from "@/lib/utils";
+import { parseDateString, addDays, localISODate } from "@/lib/utils";
 import type { Tables } from "@/lib/database.types";
 import { getHighResCover } from "@/lib/utils";
 
@@ -21,11 +21,6 @@ type AppSettings = Pick<
 	"meeting_link" | "last_meeting_date"
 >;
 
-function addTwoWeeks(dateStr: string): Date {
-	const d = parseDateString(dateStr);
-	d.setDate(d.getDate() + 14);
-	return d;
-}
 
 export function CurrentlyReadingCard({ userId, refreshKey, onDateChange }: CurrentlyReadingCardProps) {
 	const [book, setBook] = useState<Tables<"books"> | null>(null);
@@ -72,13 +67,13 @@ export function CurrentlyReadingCard({ userId, refreshKey, onDateChange }: Curre
 		const oldBase = book.next_meeting_date
 			? parseDateString(book.next_meeting_date)
 			: settings?.last_meeting_date
-				? addTwoWeeks(settings.last_meeting_date)
+				? addDays(parseDateString(settings.last_meeting_date), 14)
 				: null;
-		setBook({ ...book, next_meeting_date: newDate.toISOString() });
+		setBook({ ...book, next_meeting_date: localISODate(newDate) });
 
 		const [err1, err2] = await Promise.all([
 			updateMeetingDate(book.id, newDate),
-			oldBase ? cascadeOnDeckDates(oldBase, newDate) : Promise.resolve(null),
+			cascadeOnDeckDates(oldBase, newDate),
 		]);
 
 		if (err1 || err2) {
@@ -105,7 +100,7 @@ export function CurrentlyReadingCard({ userId, refreshKey, onDateChange }: Curre
 	const meetingDate: Date | null = book.next_meeting_date
 		? parseDateString(book.next_meeting_date)
 		: settings?.last_meeting_date
-			? addTwoWeeks(settings.last_meeting_date)
+			? addDays(parseDateString(settings.last_meeting_date), 14)
 			: null;
 
 	return (
