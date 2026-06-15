@@ -25,6 +25,12 @@ export function formatDate(date: Date): string {
 	});
 }
 
+export function addDays(date: Date, days: number): Date {
+	const d = new Date(date);
+	d.setDate(d.getDate() + days);
+	return d;
+}
+
 export function getHighResCover(url: string): string {
 	try {
 		const u = new URL(url.replace(/^http:\/\//, "https://"));

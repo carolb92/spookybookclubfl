@@ -3,19 +3,13 @@ import { supabase } from "@/lib/supabaseClient";
 import { BookCardSkeleton } from "@/components/common/BookCardSkeleton";
 import { UpNextCard } from "./UpNextCard";
 import { updateMeetingDate } from "@/services/bookActions";
-import { parseDateString } from "@/lib/utils";
+import { parseDateString, addDays } from "@/lib/utils";
 import type { Tables } from "@/lib/database.types";
 
 interface UpNextListProps {
 	userId: string | null;
 	refreshKey?: number;
 	onStatusChange?: () => void;
-}
-
-function addDays(date: Date, days: number): Date {
-	const d = new Date(date);
-	d.setDate(d.getDate() + days);
-	return d;
 }
 
 function computeDisplayDates(

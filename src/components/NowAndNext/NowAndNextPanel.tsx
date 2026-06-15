@@ -14,7 +14,11 @@ export function NowAndNextPanel() {
 			{/* Currently reading */}
 			<section>
 				<SectionLabel>Now Reading</SectionLabel>
-				<CurrentlyReadingCard userId={userId} refreshKey={refreshKey} />
+				<CurrentlyReadingCard
+					userId={userId}
+					refreshKey={refreshKey}
+					onDateChange={() => setRefreshKey((k) => k + 1)}
+				/>
 			</section>
 
 			{/* Divider */}
