@@ -6,13 +6,6 @@ import { getHighResCover, parseDateString } from "@/lib/utils";
 interface ReadBookCardProps {
 	book: Tables<"books">;
 	avgRating: number | null;
-	userRating: number | null;
-	userId: string | null;
-	onRatingChange: (
-		bookId: string,
-		newRating: number | null,
-		newAvg: number | null,
-	) => void;
 }
 
 function formatDateRead(dateStr: string | null): string | null {
@@ -24,13 +17,7 @@ function formatDateRead(dateStr: string | null): string | null {
 	});
 }
 
-export function ReadBookCard({
-	book,
-	avgRating,
-	userRating,
-	userId,
-	onRatingChange,
-}: ReadBookCardProps) {
+export function ReadBookCard({ book, avgRating }: ReadBookCardProps) {
 	const dateRead = formatDateRead(book.date_finished);
 
 	return (
@@ -69,16 +56,7 @@ export function ReadBookCard({
 						{dateRead}
 					</span>
 				)}
-				<DevilRating
-					bookId={book.id}
-					userId={userId}
-					userRating={userRating}
-					avgRating={avgRating}
-					historicalAvgRating={book.historical_avg_rating}
-					onRatingChange={(newRating, newAvg) =>
-						onRatingChange(book.id, newRating, newAvg)
-					}
-				/>
+				<DevilRating rating={avgRating ?? book.historical_avg_rating} />
 			</div>
 		</article>
 	);

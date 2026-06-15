@@ -1,158 +1,59 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import { AuthModal } from "@/components/auth/AuthModal";
-
 const DEVIL = "😈";
 const TOTAL = 5;
 
 interface DevilRatingProps {
-	bookId: string;
-	userId: string | null;
-	userRating: number | null;
-	avgRating: number | null;
-	historicalAvgRating: number | null;
-	onRatingChange: (newRating: number | null, newAvg: number | null) => void;
+	rating: number | null;
 }
 
-export function DevilRating({
-	bookId,
-	userId,
-	userRating,
-	avgRating,
-	historicalAvgRating,
-	onRatingChange,
-}: DevilRatingProps) {
-	const displayAvg = avgRating ?? historicalAvgRating;
-	const [localRating, setLocalRating] = useState<number | null>(userRating);
-	const [hovered, setHovered] = useState<number | null>(null);
-	const [isSaving, setIsSaving] = useState(false);
-
-	useEffect(() => {
-		setLocalRating(userRating);
-	}, [userRating]);
-
-	const displayValue = hovered ?? localRating ?? 0;
-	const canRate = !!userId && !isSaving;
-
-	async function handleRate(rating: number) {
-		if (!canRate) return;
-		const previousRating = localRating;
-		const shouldToggleOff = rating === localRating;
-		setLocalRating(shouldToggleOff ? null : rating);
-		setIsSaving(true);
-
-		try {
-			let writeError;
-			if (shouldToggleOff) {
-				({ error: writeError } = await supabase
-					.from("book_ratings")
-					.delete()
-					.eq("book_id", bookId)
-					.eq("user_id", userId!));
-			} else {
-				({ error: writeError } = await supabase
-					.from("book_ratings")
-					.upsert(
-						{ book_id: bookId, user_id: userId!, rating },
-						{ onConflict: "book_id,user_id" },
-					));
-			}
-			if (writeError) throw writeError;
-
-			const { data: newAvg } = await supabase.rpc("get_average_rating", {
-				book_id: bookId,
-			});
-			onRatingChange(shouldToggleOff ? null : rating, newAvg ?? null);
-		} catch {
-			setLocalRating(previousRating);
-		} finally {
-			setIsSaving(false);
-		}
-	}
-
-	if (!userId) {
-		return (
-			<div className="flex flex-col gap-1 items-center">
-				<span className="font-section text-[10px] uppercase tracking-widest text-(--spooky-crimson) font-semibold">
-					Rating
-				</span>
-				<AuthModal action="rate this book">
-					<button
-						type="button"
-						className="flex flex-col gap-1 items-center cursor-pointer"
-						aria-label="Log in to rate"
-					>
-						<div className="flex gap-0.5">
-							{Array.from({ length: TOTAL }, (_, i) => (
-								<span
-									key={i}
-									aria-hidden="true"
-									className="text-lg select-none"
-									style={{ opacity: 0.2, filter: "grayscale(1)" }}
-								>
-									{DEVIL}
-								</span>
-							))}
-						</div>
-						<span className="text-[11px] text-(--spooky-dust)">
-							Log in to rate
-						</span>
-					</button>
-				</AuthModal>
-				{displayAvg !== null && (
-					<span className="text-[11px] text-(--spooky-dust) tabular-nums">
-						Club avg: {displayAvg.toFixed(2)}
-					</span>
-				)}
-			</div>
-		);
-	}
-
+export function DevilRating({ rating }: DevilRatingProps) {
 	return (
 		<div className="flex flex-col gap-1 items-center">
-			<span className="font-section text-[10px] uppercase tracking-widest text-(--spooky-crimson) font-semibold">
+			<span className="font-section text-[11px] uppercase tracking-widest text-(--spooky-crimson) font-semibold">
 				Rating
 			</span>
 			<div
-				role="group"
-				aria-label="Rate this book"
 				className="flex gap-0.5"
-				onMouseLeave={() => setHovered(null)}
+				aria-label={
+					rating !== null ? `${rating.toFixed(2)} out of 5` : "No rating yet"
+				}
 			>
 				{Array.from({ length: TOTAL }, (_, i) => {
-					const value = i + 1;
-					const isLit = value <= displayValue;
-					const glowActive =
-						hovered === null && localRating !== null && value <= localRating;
-
+					const fill =
+						rating !== null ? Math.min(1, Math.max(0, rating - i)) : 0;
+					const clipPct = Math.round(fill * 100);
 					return (
-						<button
-							key={value}
-							type="button"
-							disabled={isSaving}
-							onClick={() => handleRate(value)}
-							onMouseEnter={() => setHovered(value)}
-							aria-label={`Rate ${value} out of ${TOTAL}`}
-							className="text-base leading-none transition-all duration-100 disabled:cursor-default select-none"
-							style={{
-								opacity: isLit ? 1 : 0.2,
-								filter: isLit ? "none" : "grayscale(1)",
-								textShadow: glowActive
-									? "0 0 10px var(--spooky-crimson-glow)"
-									: "none",
-							}}
+						<span
+							key={i}
+							className="relative inline-block text-lg select-none leading-none"
 						>
-							<span className="text-lg" aria-hidden="true">
+							<span
+								aria-hidden="true"
+								style={{ opacity: 0.5, filter: "grayscale(1)" }}
+							>
 								{DEVIL}
 							</span>
-						</button>
+							{clipPct > 0 && (
+								<span
+									aria-hidden="true"
+									style={{
+										position: "absolute",
+										left: 0,
+										top: 0,
+										clipPath: `inset(0 ${100 - clipPct}% 0 0)`,
+									}}
+								>
+									{DEVIL}
+								</span>
+							)}
+						</span>
 					);
 				})}
 			</div>
-			<div className="flex gap-2.5 text-[11px] text-(--spooky-dust) tabular-nums">
-				<span>Your vote: {localRating ?? "none"}</span>
-				{displayAvg !== null && <span>Club avg: {displayAvg.toFixed(2)}</span>}
-			</div>
+			{rating !== null && (
+				<span className="text-[12px] text-(--spooky-dust) tabular-nums">
+					{rating.toFixed(2)}
+				</span>
+			)}
 		</div>
 	);
 }
