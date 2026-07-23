@@ -22,10 +22,49 @@ interface GoogleBooksApiResponse {
   kind?: string;
 }
 
+const MAX_RETRIES = 2;
+const RETRYABLE_STATUSES = new Set([500, 502, 503, 504]);
+
+function isRetryableStatus(status: number): boolean {
+  return RETRYABLE_STATUSES.has(status);
+}
+
+function backoffMs(attempt: number): number {
+  const base = 1000 * 2 ** attempt; // 1000, 2000, ...
+  const jitter = base * 0.2 * (Math.random() * 2 - 1); // ±20%
+  return base + jitter;
+}
+
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timeout);
+        reject(new DOMException("Aborted", "AbortError"));
+      },
+      { once: true },
+    );
+  });
+}
+
 export async function searchBooks(query: string, signal?: AbortSignal): Promise<GoogleBook[]> {
   const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&key=${API_KEY}&maxResults=20`;
-  const response = await fetch(url, { signal });
-  if (!response.ok) throw new Error(`Response status: ${response.status}`);
-  const result: GoogleBooksApiResponse = await response.json();
-  return result.items ?? [];
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const response = await fetch(url, { signal });
+    if (response.ok) {
+      const result: GoogleBooksApiResponse = await response.json();
+      return result.items ?? [];
+    }
+
+    if (!isRetryableStatus(response.status) || attempt === MAX_RETRIES) {
+      throw new Error(`Response status: ${response.status}`);
+    }
+
+    await delay(backoffMs(attempt), signal);
+  }
+
+  throw new Error("Unreachable");
 }
