@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { searchBooks, type GoogleBook } from "@/services/searchBooks";
 import { SearchView } from "./SearchView";
 import { BookPreview } from "./BookPreview";
+import { RETRYABLE_STATUSES } from "../../services/searchBooks";
 
 type ModalView = "search" | "preview";
 
@@ -51,8 +52,19 @@ export function AddBookModal({
 				setResults(books);
 				setHasSearched(true);
 			} catch (err) {
-				if (err instanceof Error && err.name === "AbortError") return;
-				setSearchError("Something went wrong. Try again.");
+				if (!(err instanceof Error)) {
+					setSearchError("Something went wrong. Try again.");
+					setResults([]);
+					return;
+				}
+				if (err.name === "AbortError") return;
+				if (RETRYABLE_STATUSES.has(Number(err.message.split(":")[1]))) {
+					setSearchError(
+						"The fuck ass Google Books API server tanked this search. Try again in a bit.",
+					);
+				} else {
+					setSearchError("Something went wrong. Try again.");
+				}
 				setResults([]);
 			} finally {
 				setIsLoading(false);
@@ -118,7 +130,11 @@ export function AddBookModal({
 						/>
 					)}
 					{view === "preview" && selectedBook && (
-						<BookPreview book={selectedBook} onBack={handleBack} onBookAdded={onBookAdded} />
+						<BookPreview
+							book={selectedBook}
+							onBack={handleBack}
+							onBookAdded={onBookAdded}
+						/>
 					)}
 				</div>
 			</DialogContent>
