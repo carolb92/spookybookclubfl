@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/contexts/useAuth";
 import { Accordion } from "@/components/ui/accordion";
@@ -13,192 +14,138 @@ import {
 } from "@/components/ui/pagination";
 import { TBRBookItem } from "./TBRBookItem";
 import type { Tables } from "@/lib/database.types";
+import { bookKeys } from "@/lib/queryKeys";
+import { sortTBR } from "@/lib/utils";
+import type { BookWithStats } from "@/types/books";
 
 const PAGE_SIZE = 10;
-
-function sortTBR(a: BookWithStats, b: BookWithStats): number {
-	if (a.avgExcitement !== null && b.avgExcitement !== null) {
-		return b.avgExcitement - a.avgExcitement;
-	}
-	if (a.avgExcitement !== null) return -1;
-	if (b.avgExcitement !== null) return 1;
-	// Both unvoted: newest addition first
-	return (b.date_added ?? "").localeCompare(a.date_added ?? "");
-}
-
-type BookWithStats = Tables<"books"> & {
-	avgExcitement: number | null;
-	userVote: number | null;
-};
 
 interface TBRListProps {
 	onEmpty: () => void;
 	pendingBook: Tables<"books"> | null;
 }
 
+async function fetchTBRBooks(userId: string | null): Promise<BookWithStats[]> {
+	const { data: booksData, error } = await supabase
+		.from("books")
+		.select("*")
+		.eq("status", "tbr");
+
+	if (error) {
+		console.error("Failed to fetch TBR books:", error);
+		throw new Error("Couldn't load the TBR list. Please refresh.");
+	}
+
+	if (booksData.length === 0) return [];
+
+	const bookIds = booksData.map((b) => b.id);
+
+	const [avgResult, userVotesResult] = await Promise.all([
+		supabase.rpc("get_average_excitement_batch", { book_ids: bookIds }),
+		userId
+			? supabase
+					.from("excitement_votes")
+					.select("book_id, rating")
+					.eq("user_id", userId)
+					.in("book_id", bookIds)
+			: Promise.resolve({
+					data: [] as { book_id: string; rating: number }[],
+					error: null,
+				}),
+	]);
+
+	if (avgResult.error || userVotesResult.error) {
+		console.error(
+			"Failed to fetch excitement data:",
+			avgResult.error ?? userVotesResult.error,
+		);
+		throw new Error("Couldn't load the TBR list. Please refresh.");
+	}
+
+	const avgMap = new Map(
+		(avgResult.data ?? []).map((r) => [r.book_id, r.avg_excitement]),
+	);
+
+	const userVoteMap = new Map(
+		(userVotesResult.data ?? []).map((v) => [v.book_id, v.rating]),
+	);
+
+	const booksWithStats: BookWithStats[] = booksData.map((book) => ({
+		...book,
+		avgExcitement: avgMap.get(book.id) ?? null,
+		userVote: userVoteMap.get(book.id) ?? null,
+	}));
+
+	booksWithStats.sort(sortTBR);
+	return booksWithStats;
+}
+
 export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 	const { session } = useAuth();
-	const [books, setBooks] = useState<BookWithStats[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
-	const [fetchError, setFetchError] = useState<string | null>(null);
-	const [currentPage, setCurrentPage] = useState(1);
-	const prevTotalPagesRef = useRef(0);
-
 	const userId = session?.user.id ?? null;
+	const queryClient = useQueryClient();
+	const [currentPage, setCurrentPage] = useState(1);
+
+	const queryKey = bookKeys.tbr(userId);
+
+	const { data, isPending, error } = useQuery({
+		queryKey,
+		queryFn: () => fetchTBRBooks(userId),
+	});
+
+	const books = data ?? [];
 
 	useEffect(() => {
-		async function fetchBooks() {
-			setIsLoading(true);
-			setFetchError(null);
-
-			const { data: booksData, error } = await supabase
-				.from("books")
-				.select("*")
-				.eq("status", "tbr");
-
-			if (error) {
-				console.error("Failed to fetch TBR books:", error);
-				setFetchError("Couldn't load the TBR list. Please refresh.");
-				setIsLoading(false);
-				return;
-			}
-
-			if (booksData.length === 0) {
-				setBooks([]);
-				setIsLoading(false);
-				onEmpty();
-				return;
-			}
-
-			const bookIds = booksData.map((b) => b.id);
-
-			const [avgResult, userVotesResult] = await Promise.all([
-				supabase.rpc("get_average_excitement_batch", { book_ids: bookIds }),
-				userId
-					? supabase
-							.from("excitement_votes")
-							.select("book_id, rating")
-							.eq("user_id", userId)
-							.in("book_id", bookIds)
-					: Promise.resolve({
-							data: [] as { book_id: string; rating: number }[],
-						}),
-			]);
-
-			if (avgResult.error || ("error" in userVotesResult && userVotesResult.error)) {
-				console.error("Failed to fetch excitement data:", avgResult.error ?? ("error" in userVotesResult ? userVotesResult.error : null));
-				setFetchError("Couldn't load the TBR list. Please refresh.");
-				setIsLoading(false);
-				return;
-			}
-
-			const avgMap = new Map(
-				(avgResult.data ?? []).map((r) => [r.book_id, r.avg_excitement]),
-			);
-
-			const userVoteMap = new Map(
-				(userVotesResult.data ?? []).map((v) => [v.book_id, v.rating]),
-			);
-
-			const booksWithStats: BookWithStats[] = booksData.map((book) => ({
-				...book,
-				avgExcitement: avgMap.get(book.id) ?? null,
-				userVote: userVoteMap.get(book.id) ?? null,
-			}));
-
-			booksWithStats.sort(sortTBR);
-
-			const newTotalPages = Math.ceil(booksWithStats.length / PAGE_SIZE);
-			if (
-				prevTotalPagesRef.current > 0 &&
-				newTotalPages > prevTotalPagesRef.current
-			) {
-				setCurrentPage(newTotalPages);
-			}
-			prevTotalPagesRef.current = newTotalPages;
-
-			setBooks(booksWithStats);
-			setIsLoading(false);
+		if (data && data.length === 0) {
+			onEmpty();
 		}
-
-		fetchBooks().catch((err) => {
-			console.error("Unexpected error in fetchBooks:", err);
-			setFetchError("Couldn't load the TBR list. Please refresh.");
-			setIsLoading(false);
-		});
-	}, [userId, onEmpty]);
+	}, [data, onEmpty]);
 
 	useEffect(() => {
 		if (!pendingBook) return;
-		setBooks((prev) => {
-			if (prev.some((b) => b.id === pendingBook.id)) return prev;
-			const withNew: BookWithStats[] = [
-				...prev,
-				{ ...pendingBook, avgExcitement: null, userVote: null },
-			];
-			withNew.sort(sortTBR);
-			const newTotalPages = Math.ceil(withNew.length / PAGE_SIZE);
-			if (prevTotalPagesRef.current > 0 && newTotalPages > prevTotalPagesRef.current) {
-				setCurrentPage(newTotalPages);
-			}
-			prevTotalPagesRef.current = newTotalPages;
-			return withNew;
-		});
+		const prev = queryClient.getQueryData<BookWithStats[]>(queryKey) ?? [];
+		if (prev.some((b) => b.id === pendingBook.id)) return;
+
+		const withNew: BookWithStats[] = [
+			...prev,
+			{ ...pendingBook, avgExcitement: null, userVote: null },
+		];
+		withNew.sort(sortTBR);
+		queryClient.setQueryData(queryKey, withNew);
+
+		// set current page to whatever page the new book was sorted to
+		const newIndex = withNew.findIndex((b) => b.id === pendingBook.id);
+		setCurrentPage(Math.floor(newIndex / PAGE_SIZE) + 1);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pendingBook]);
 
-	function handleVoteChange(
-		bookId: string,
-		newVote: number | null,
-		newAvg: number | null,
-	) {
-		setBooks((prev) =>
-			prev
-				.map((b) =>
-					b.id === bookId
-						? { ...b, userVote: newVote, avgExcitement: newAvg }
-						: b,
-				)
-				.sort(sortTBR),
-		);
+	useEffect(() => {
+		const newTotalPages = Math.ceil(books.length / PAGE_SIZE);
+		if (currentPage > newTotalPages) {
+			setCurrentPage(Math.max(1, newTotalPages));
+		}
+	}, [books.length, currentPage]);
+
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	function handleStatusChange(_bookId: string) {
+		queryClient.invalidateQueries({ queryKey: bookKeys.byStatus("tbr") });
+		queryClient.invalidateQueries({ queryKey: bookKeys.byStatus("on_deck") });
 	}
 
-	function handleStatusChange(bookId: string) {
-		setBooks((prev) => {
-			const next = prev.filter((b) => b.id !== bookId);
-			if (next.length === 0) {
-				onEmpty();
-			} else {
-				const newTotalPages = Math.ceil(next.length / PAGE_SIZE);
-				prevTotalPagesRef.current = newTotalPages;
-				setCurrentPage((p) => Math.min(p, newTotalPages));
-			}
-			return next;
-		});
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	function handleDelete(_bookId: string) {
+		queryClient.invalidateQueries({ queryKey: bookKeys.byStatus("tbr") });
 	}
 
-	function handleDelete(bookId: string) {
-		setBooks((prev) => {
-			const next = prev.filter((b) => b.id !== bookId);
-			if (next.length === 0) {
-				onEmpty();
-			} else {
-				const newTotalPages = Math.ceil(next.length / PAGE_SIZE);
-				prevTotalPagesRef.current = newTotalPages;
-				setCurrentPage((p) => Math.min(p, newTotalPages));
-			}
-			return next;
-		});
-	}
-
-	if (fetchError) {
+	if (error) {
 		return (
 			<p className="text-sm text-(--spooky-dust) text-center py-4">
-				{fetchError}
+				{error.message}
 			</p>
 		);
 	}
 
-	if (isLoading) {
+	if (isPending) {
 		return (
 			<div className="flex flex-col w-full h-full justify-center items-center">
 				<div
@@ -231,7 +178,6 @@ export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 						avgExcitement={book.avgExcitement}
 						userVote={book.userVote}
 						userId={userId}
-						onVoteChange={handleVoteChange}
 						onDelete={handleDelete}
 						onStatusChange={handleStatusChange}
 					/>

@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { bookKeys } from "@/lib/queryKeys";
+import { sortTBR } from "@/lib/utils";
+import type { BookWithStats } from "@/types/books";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const GHOST = "👻";
 const TOTAL = 5;
@@ -10,7 +14,6 @@ interface GhostRatingProps {
 	userId: string | null;
 	userVote: number | null;
 	avgExcitement: number | null;
-	onVoteChange: (newVote: number | null, newAvg: number | null) => void;
 }
 
 export function GhostRating({
@@ -18,27 +21,36 @@ export function GhostRating({
 	userId,
 	userVote,
 	avgExcitement,
-	onVoteChange,
 }: GhostRatingProps) {
 	const [localVote, setLocalVote] = useState<number | null>(userVote);
 	const [hovered, setHovered] = useState<number | null>(null);
-	const [isSaving, setIsSaving] = useState(false);
+	const queryClient = useQueryClient();
+	const queryKey = bookKeys.tbr(userId);
 
 	useEffect(() => {
 		setLocalVote(userVote);
 	}, [userVote]);
 
-	const displayValue = hovered ?? localVote ?? 0;
-	const canVote = !!userId && !isSaving;
+	function handleVoteChangeSort(
+		bookId: string,
+		newVote: number | null,
+		newAvg: number | null,
+	) {
+		queryClient.setQueryData<BookWithStats[]>(queryKey, (prev = []) =>
+			prev
+				.map((b) =>
+					b.id === bookId
+						? { ...b, userVote: newVote, avgExcitement: newAvg }
+						: b,
+				)
+				.sort(sortTBR),
+		);
+	}
 
-	async function handleVote(rating: number) {
-		if (!canVote) return;
-		const previousVote = localVote;
-		const shouldToggleOff = rating === localVote;
-		setLocalVote(shouldToggleOff ? null : rating);
-		setIsSaving(true);
+	const voteMutation = useMutation({
+		mutationFn: async (rating: number) => {
+			const shouldToggleOff = rating === localVote;
 
-		try {
 			const { data: existing } = await supabase
 				.from("excitement_votes")
 				.select("id")
@@ -73,13 +85,26 @@ export function GhostRating({
 			const { data: newAvg } = await supabase.rpc("get_average_excitement", {
 				book_id: bookId,
 			});
-			onVoteChange(shouldToggleOff ? null : rating, newAvg ?? null);
-		} catch {
-			setLocalVote(previousVote);
-		} finally {
-			setIsSaving(false);
-		}
-	}
+
+			return {
+				newVote: shouldToggleOff ? null : rating,
+				newAvg: newAvg ?? null,
+			};
+		},
+		onMutate: (rating: number) => {
+			const previousVote = localVote;
+			setLocalVote(rating === localVote ? null : rating);
+			return { previousVote };
+		},
+		onError: (_err, _rating, context) => {
+			setLocalVote(context?.previousVote ?? null);
+		},
+		onSuccess: ({ newVote, newAvg }) => {
+			handleVoteChangeSort(bookId, newVote, newAvg);
+		},
+	});
+
+	const displayValue = hovered ?? localVote ?? 0;
 
 	const dimGhosts = (
 		<>
@@ -143,8 +168,8 @@ export function GhostRating({
 						<button
 							key={value}
 							type="button"
-							disabled={isSaving}
-							onClick={() => handleVote(value)}
+							disabled={voteMutation.isPending}
+							onClick={() => voteMutation.mutate(value)}
 							onMouseEnter={() => setHovered(value)}
 							aria-label={`Rate ${value} out of ${TOTAL}`}
 							className="text-lg leading-none transition-all duration-100 disabled:cursor-default select-none"
