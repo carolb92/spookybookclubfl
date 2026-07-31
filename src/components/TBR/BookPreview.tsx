@@ -1,23 +1,26 @@
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { DialogClose } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { cn, sortTBR } from "@/lib/utils";
 import { type GoogleBook } from "@/services/searchBooks";
 import { supabase } from "@/lib/supabaseClient";
 import { CoverPlaceholder } from "./CoverPlaceholder";
-import type { Tables } from "@/lib/database.types";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/useAuth";
+import { bookKeys } from "@/lib/queryKeys";
+import type { BookWithStats } from "@/types/books";
 
 export function BookPreview({
 	book,
 	onBack,
-	onBookAdded,
 }: {
 	book: GoogleBook;
 	onBack: () => void;
-	onBookAdded?: (book: Tables<"books">) => void;
 }) {
 	const closeRef = useRef<HTMLButtonElement>(null);
+	const { session } = useAuth();
+	const userId = session?.user.id ?? null;
+	const queryClient = useQueryClient();
 	const { title, authors, description, pageCount, imageLinks } =
 		book.volumeInfo;
 	const coverUrl = imageLinks?.thumbnail ?? imageLinks?.smallThumbnail;
@@ -50,7 +53,18 @@ export function BookPreview({
 			return inserted;
 		},
 		onSuccess: (inserted) => {
-			onBookAdded?.(inserted);
+			queryClient.setQueryData<BookWithStats[]>(
+				bookKeys.tbr(userId),
+				(prev = []) => {
+					if (prev.some((b) => b.id === inserted.id)) return prev;
+					const withNew: BookWithStats[] = [
+						...prev,
+						{ ...inserted, avgExcitement: null, userVote: null },
+					];
+					withNew.sort(sortTBR);
+					return withNew;
+				},
+			);
 			closeRef.current?.click();
 		},
 	});

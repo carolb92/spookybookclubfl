@@ -13,7 +13,6 @@ import {
 	PaginationPrevious,
 } from "@/components/ui/pagination";
 import { TBRBookItem } from "./TBRBookItem";
-import type { Tables } from "@/lib/database.types";
 import { bookKeys } from "@/lib/queryKeys";
 import { sortTBR } from "@/lib/utils";
 import type { BookWithStats } from "@/types/books";
@@ -21,8 +20,7 @@ import type { BookWithStats } from "@/types/books";
 const PAGE_SIZE = 10;
 
 interface TBRListProps {
-	onEmpty: () => void;
-	pendingBook: Tables<"books"> | null;
+	onEmptyChange: (isEmpty: boolean) => void;
 }
 
 async function fetchTBRBooks(userId: string | null): Promise<BookWithStats[]> {
@@ -80,11 +78,11 @@ async function fetchTBRBooks(userId: string | null): Promise<BookWithStats[]> {
 	return booksWithStats;
 }
 
-export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
+export function TBRList({ onEmptyChange }: TBRListProps) {
 	const { session } = useAuth();
 	const userId = session?.user.id ?? null;
 	const queryClient = useQueryClient();
-	const [currentPage, setCurrentPage] = useState(1);
+	const [rawCurrentPage, setRawCurrentPage] = useState(1);
 
 	const queryKey = bookKeys.tbr(userId);
 
@@ -96,35 +94,10 @@ export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 	const books = data ?? [];
 
 	useEffect(() => {
-		if (data && data.length === 0) {
-			onEmpty();
+		if (data) {
+			onEmptyChange(data.length === 0);
 		}
-	}, [data, onEmpty]);
-
-	useEffect(() => {
-		if (!pendingBook) return;
-		const prev = queryClient.getQueryData<BookWithStats[]>(queryKey) ?? [];
-		if (prev.some((b) => b.id === pendingBook.id)) return;
-
-		const withNew: BookWithStats[] = [
-			...prev,
-			{ ...pendingBook, avgExcitement: null, userVote: null },
-		];
-		withNew.sort(sortTBR);
-		queryClient.setQueryData(queryKey, withNew);
-
-		// set current page to whatever page the new book was sorted to
-		const newIndex = withNew.findIndex((b) => b.id === pendingBook.id);
-		setCurrentPage(Math.floor(newIndex / PAGE_SIZE) + 1);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [pendingBook]);
-
-	useEffect(() => {
-		const newTotalPages = Math.ceil(books.length / PAGE_SIZE);
-		if (currentPage > newTotalPages) {
-			setCurrentPage(Math.max(1, newTotalPages));
-		}
-	}, [books.length, currentPage]);
+	}, [data, onEmptyChange]);
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	function handleStatusChange(_bookId: string) {
@@ -163,6 +136,10 @@ export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 	if (books.length === 0) return null;
 
 	const totalPages = Math.ceil(books.length / PAGE_SIZE);
+	// Clamp for rendering instead of syncing via effect — if the list shrank
+	// since the last render, this falls back to the new last page without an
+	// extra render cycle or a stale `currentPage` for one frame.
+	const currentPage = Math.min(rawCurrentPage, Math.max(1, totalPages));
 	const pageBooks = books.slice(
 		(currentPage - 1) * PAGE_SIZE,
 		currentPage * PAGE_SIZE,
@@ -192,7 +169,7 @@ export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 								href="#"
 								onClick={(e) => {
 									e.preventDefault();
-									setCurrentPage((p) => Math.max(1, p - 1));
+									setRawCurrentPage((p) => Math.max(1, p - 1));
 								}}
 								aria-disabled={currentPage === 1}
 								className={
@@ -213,7 +190,7 @@ export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 										isActive={item === currentPage}
 										onClick={(e) => {
 											e.preventDefault();
-											setCurrentPage(item);
+											setRawCurrentPage(item);
 										}}
 									>
 										{item}
@@ -227,7 +204,7 @@ export function TBRList({ onEmpty, pendingBook }: TBRListProps) {
 								href="#"
 								onClick={(e) => {
 									e.preventDefault();
-									setCurrentPage((p) => Math.min(totalPages, p + 1));
+									setRawCurrentPage((p) => Math.min(totalPages, p + 1));
 								}}
 								aria-disabled={currentPage === totalPages}
 								className={
