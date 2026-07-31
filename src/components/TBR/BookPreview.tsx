@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { DialogClose } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -6,6 +6,7 @@ import { type GoogleBook } from "@/services/searchBooks";
 import { supabase } from "@/lib/supabaseClient";
 import { CoverPlaceholder } from "./CoverPlaceholder";
 import type { Tables } from "@/lib/database.types";
+import { useMutation } from "@tanstack/react-query";
 
 export function BookPreview({
 	book,
@@ -16,18 +17,14 @@ export function BookPreview({
 	onBack: () => void;
 	onBookAdded?: (book: Tables<"books">) => void;
 }) {
-	const [isAdding, setIsAdding] = useState(false);
-	const [addError, setAddError] = useState<string | null>(null);
 	const closeRef = useRef<HTMLButtonElement>(null);
 	const { title, authors, description, pageCount, imageLinks } =
 		book.volumeInfo;
 	const coverUrl = imageLinks?.thumbnail ?? imageLinks?.smallThumbnail;
 	const authorLine = authors?.join(", ") ?? "Unknown author";
 
-	const handleAdd = useCallback(async () => {
-		setIsAdding(true);
-		setAddError(null);
-		try {
+	const addBookMutation = useMutation({
+		mutationFn: async () => {
 			const { data: inserted, error } = await supabase
 				.from("books")
 				.insert({
@@ -42,29 +39,21 @@ export function BookPreview({
 				})
 				.select()
 				.single();
+
 			if (error) {
 				if (error.code === "23505") {
-					setAddError("This book is already in your TBR list.");
-					return;
+					throw new Error("This book is already on the TBR list.");
 				}
-				throw error;
+				throw new Error("Failed to add book. Try again.");
 			}
+
+			return inserted;
+		},
+		onSuccess: (inserted) => {
 			onBookAdded?.(inserted);
 			closeRef.current?.click();
-		} catch {
-			setAddError("Failed to add book. Please try again.");
-		} finally {
-			setIsAdding(false);
-		}
-	}, [
-		title,
-		authorLine,
-		coverUrl,
-		description,
-		pageCount,
-		book.id,
-		onBookAdded,
-	]);
+		},
+	});
 
 	return (
 		<div className="flex flex-col gap-5">
@@ -147,13 +136,15 @@ export function BookPreview({
 				</div>
 			)}
 
-			{addError && (
-				<p className="text-xs text-red-400/80 text-center">{addError}</p>
+			{addBookMutation.error && (
+				<p className="text-xs text-red-400/80 text-center">
+					{addBookMutation.error.message}
+				</p>
 			)}
 
 			<Button
-				onClick={handleAdd}
-				disabled={isAdding}
+				onClick={() => addBookMutation.mutate()}
+				disabled={addBookMutation.isPending}
 				className={cn(
 					"w-full h-10 rounded-md font-semibold tracking-wide text-sm",
 					"bg-(--spooky-crimson) hover:bg-(--spooky-crimson)/80 text-(--spooky-parchment)",
@@ -161,7 +152,7 @@ export function BookPreview({
 					"transition-all duration-150 disabled:opacity-50",
 				)}
 			>
-				{isAdding ? (
+				{addBookMutation.isPending ? (
 					<span className="flex items-center gap-2">
 						<svg
 							className="size-4 animate-spin"

@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { deleteBook } from "@/services/bookActions";
+import { useMutation } from "@tanstack/react-query";
 
 interface DeleteBookDialogProps {
 	bookId: string;
@@ -24,28 +25,24 @@ export function DeleteBookDialog({
 	triggerWidth = "full",
 }: DeleteBookDialogProps) {
 	const [open, setOpen] = useState(false);
-	const [isDeleting, setIsDeleting] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 
-	async function handleDelete() {
-		setIsDeleting(true);
-		setError(null);
-		const error = await deleteBook(bookId);
-		setIsDeleting(false);
-		if (error) {
-			setError(error);
-			return;
-		}
-		setOpen(false);
-		onDelete(bookId);
-	}
+	const deleteMutation = useMutation({
+		mutationFn: async () => {
+			const error = await deleteBook(bookId);
+			if (error) throw new Error(error);
+		},
+		onSuccess: () => {
+			setOpen(false);
+			onDelete(bookId);
+		},
+	});
 
 	return (
 		<Dialog
 			open={open}
 			onOpenChange={(next) => {
 				setOpen(next);
-				if (!next) setError(null);
+				if (!next) deleteMutation.reset();
 			}}
 		>
 			<DialogTrigger asChild>
@@ -70,19 +67,23 @@ export function DeleteBookDialog({
 						? This cannot be undone.
 					</DialogDescription>
 				</DialogHeader>
-				{error && <p className="text-xs text-red-400/80">{error}</p>}
+				{deleteMutation.error && (
+					<p className="text-xs text-red-400/80">
+						{deleteMutation.error.message}
+					</p>
+				)}
 				<div className="flex flex-col gap-2">
 					<Button
-						onClick={handleDelete}
-						disabled={isDeleting}
+						onClick={() => deleteMutation.mutate()}
+						disabled={deleteMutation.isPending}
 						className="bg-(--spooky-crimson) hover:bg-(--spooky-crimson)/80 text-(--spooky-parchment) border border-(--spooky-crimson)/60 hover:border-(--spooky-crimson) transition-all duration-150 disabled:opacity-50"
 					>
-						{isDeleting ? "Removing…" : "Yeah fuck that book"}
+						{deleteMutation.isPending ? "Removing…" : "Yeah fuck that book"}
 					</Button>
 					<Button
 						variant="outline"
 						onClick={() => setOpen(false)}
-						disabled={isDeleting}
+						disabled={deleteMutation.isPending}
 						className="text-(--spooky-dust) hover:text-(--spooky-parchment) hover:bg-(--spooky-border)/40"
 					>
 						Nah, just kidding!
