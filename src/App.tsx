@@ -16,7 +16,9 @@ const queryClient = new QueryClient({
 function App() {
 	return (
 		<QueryClientProvider client={queryClient}>
-			<ReactQueryDevtools initialIsOpen={false} position="left" />
+			{import.meta.env.DEV && (
+				<ReactQueryDevtools initialIsOpen={false} position="left" />
+			)}
 			<AuthProvider>
 				<div className="app-root min-h-screen">
 					{/* Grain texture overlay */}

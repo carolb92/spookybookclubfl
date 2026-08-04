@@ -136,7 +136,6 @@ export default function UpNextList({ userId }: UpNextListProps) {
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	function handleRemove(_bookId: string) {
-		queryClient.invalidateQueries({ queryKey: bookKeys.byStatus("tbr") });
 		queryClient.invalidateQueries({ queryKey: bookKeys.byStatus("on_deck") });
 	}
 
