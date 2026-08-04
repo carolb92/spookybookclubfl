@@ -14,11 +14,6 @@ interface TBRBookItemProps {
 	avgExcitement: number | null;
 	userVote: number | null;
 	userId: string | null;
-	onVoteChange: (
-		bookId: string,
-		newVote: number | null,
-		newAvg: number | null,
-	) => void;
 	onDelete: (bookId: string) => void;
 	onStatusChange: (bookId: string) => void;
 }
@@ -28,7 +23,6 @@ export function TBRBookItem({
 	avgExcitement,
 	userVote,
 	userId,
-	onVoteChange,
 	onDelete,
 	onStatusChange,
 }: TBRBookItemProps) {
@@ -91,9 +85,6 @@ export function TBRBookItem({
 							userId={userId}
 							userVote={userVote}
 							avgExcitement={avgExcitement}
-							onVoteChange={(newVote, newAvg) =>
-								onVoteChange(book.id, newVote, newAvg)
-							}
 						/>
 						<TBRBookActionsPanel
 							book={book}

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { ActionButton } from "./ActionButton";
 import { DeleteBookDialog } from "./DeleteBookDialog";
@@ -6,7 +5,7 @@ import { CurrentlyReadingDialog } from "@/components/common/CurrentlyReadingDial
 import { useCurrentlyReadingFlow } from "@/hooks/useCurrentlyReadingFlow";
 import { markAsOnDeck } from "@/services/bookActions";
 import type { Tables } from "@/lib/database.types";
-
+import { useMutation } from "@tanstack/react-query";
 interface TBRBookActionsPanelProps {
 	book: Tables<"books">;
 	userId: string | null;
@@ -20,32 +19,25 @@ export function TBRBookActionsPanel({
 	onDelete,
 	onStatusChange,
 }: TBRBookActionsPanelProps) {
-	const flow = useCurrentlyReadingFlow(book.id, () => onStatusChange(book.id));
-	const [isAddingToUpNext, setIsAddingToUpNext] = useState(false);
-	const [upNextError, setUpNextError] = useState<string | null>(null);
+	const flow = useCurrentlyReadingFlow(book.id);
 
-	async function handleAddToUpNext() {
-		setIsAddingToUpNext(true);
-		setUpNextError(null);
-		const err = await markAsOnDeck(book.id);
-		setIsAddingToUpNext(false);
-		if (err) {
-			setUpNextError(err);
-			return;
-		}
-		flow.close();
-		onStatusChange(book.id);
-	}
+	const addToUpNextMutation = useMutation({
+		mutationFn: async () => {
+			const err = await markAsOnDeck(book.id);
+			if (err) throw new Error("Couldn't add to Up Next. Try again.");
+		},
+		onSuccess: () => {
+			flow.close();
+			onStatusChange(book.id);
+		},
+	});
 
 	return (
 		<div className="flex flex-col gap-2">
 			<div className="grid grid-cols-2 gap-2 md:grid-cols-1">
 				{userId ? (
 					<>
-						<ActionButton
-							onClick={flow.initiate}
-							disabled={flow.isChecking}
-						>
+						<ActionButton onClick={flow.initiate} disabled={flow.isChecking}>
 							+ Currently Reading
 						</ActionButton>
 
@@ -54,12 +46,12 @@ export function TBRBookActionsPanel({
 							flowState={flow.flowState}
 							existingBook={flow.existingBook}
 							isSubmitting={flow.isSubmitting}
-							isAddingToUpNext={isAddingToUpNext}
+							isAddingToUpNext={addToUpNextMutation.isPending}
 							error={flow.error}
 							onConfirm={flow.confirm}
 							onReplace={flow.replace}
 							onClose={flow.close}
-							onAddToUpNext={handleAddToUpNext}
+							onAddToUpNext={() => addToUpNextMutation.mutate()}
 						/>
 					</>
 				) : (
@@ -71,13 +63,15 @@ export function TBRBookActionsPanel({
 				{userId ? (
 					<div className="flex flex-col gap-1">
 						<ActionButton
-							onClick={handleAddToUpNext}
-							disabled={isAddingToUpNext}
+							onClick={() => addToUpNextMutation.mutate()}
+							disabled={addToUpNextMutation.isPending}
 						>
 							+ Up Next
 						</ActionButton>
-						{upNextError && (
-							<p className="text-xs text-red-400/80">{upNextError}</p>
+						{addToUpNextMutation.error && (
+							<p className="text-xs text-red-400/80">
+								{addToUpNextMutation.error.message}
+							</p>
 						)}
 					</div>
 				) : (

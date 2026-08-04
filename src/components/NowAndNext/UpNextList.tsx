@@ -1,15 +1,43 @@
-import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { BookCardSkeleton } from "@/components/common/BookCardSkeleton";
 import { UpNextCard } from "./UpNextCard";
 import { updateMeetingDate } from "@/services/bookActions";
-import { parseDateString, addDays } from "@/lib/utils";
+import { parseDateString, addDays, localISODate } from "@/lib/utils";
 import type { Tables } from "@/lib/database.types";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { bookKeys } from "@/lib/queryKeys";
+import { useFetchCurrentlyReadingInfo } from "@/hooks/useFetchCurrentlyReadingInfo";
 
 interface UpNextListProps {
 	userId: string | null;
-	refreshKey?: number;
-	onStatusChange?: () => void;
+}
+
+async function fetchUpNextBooks() {
+	const deckResult = await supabase
+		.from("books")
+		.select("*")
+		.eq("status", "on_deck")
+		.order("next_meeting_date", { ascending: true, nullsFirst: false });
+
+	if (deckResult.error) {
+		throw new Error("Couldn't fetch up next list. Try again.");
+	}
+
+	return deckResult.data;
+}
+
+function computeCascadeUpdates(
+	books: Tables<"books">[],
+	index: number,
+	newDate: Date,
+): Array<{ id: string; date: Date }> {
+	const updates: Array<{ id: string; date: Date }> = [];
+	let current = newDate;
+	for (let i = index; i < books.length; i++) {
+		updates.push({ id: books[i].id, date: current });
+		current = addDays(current, 14);
+	}
+	return updates;
 }
 
 function computeDisplayDates(
@@ -30,105 +58,99 @@ function computeDisplayDates(
 	return dates;
 }
 
-export function UpNextList({ userId, refreshKey, onStatusChange }: UpNextListProps) {
-	const [books, setBooks] = useState<Tables<"books">[]>([]);
-	const [currentlyReadingDate, setCurrentlyReadingDate] = useState<Date | null>(
-		null,
-	);
-	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+export default function UpNextList({ userId }: UpNextListProps) {
+	const queryClient = useQueryClient();
+	// --- CURRENTLY READING DATA --- //
+	const {
+		data: currentlyReadingData,
+		isPending: isPendingCurrentlyReading,
+		error: currentlyReadingError,
+	} = useFetchCurrentlyReadingInfo();
 
-	useEffect(() => {
-		async function fetch() {
-			setIsLoading(true);
-			setError(null);
+	// Use the currently reading book's meeting date as the cascade base.
+	// Fall back to app_settings.last_meeting_date + 14 (approximates the upcoming
+	// meeting for the currently reading book when it has no date stored yet).
+	let currentlyReadingDate: Date | null = null;
+	if (currentlyReadingData?.book?.next_meeting_date) {
+		currentlyReadingDate = parseDateString(
+			currentlyReadingData?.book?.next_meeting_date,
+		);
+	} else if (currentlyReadingData?.settings?.last_meeting_date) {
+		currentlyReadingDate = addDays(
+			parseDateString(currentlyReadingData?.settings?.last_meeting_date),
+			14,
+		);
+	}
 
-			const [deckResult, currentResult, settingsResult] = await Promise.all([
-				supabase
-					.from("books")
-					.select("*")
-					.eq("status", "on_deck")
-					.order("next_meeting_date", { ascending: true, nullsFirst: false }),
-				supabase
-					.from("books")
-					.select("next_meeting_date")
-					.eq("status", "currently_reading")
-					.limit(1)
-					.maybeSingle(),
-				supabase
-					.from("app_settings")
-					.select("last_meeting_date")
-					.limit(1)
-					.maybeSingle(),
-			]);
+	// --- UP NEXT DATA --- //
+	const {
+		data: books = [],
+		isPending: isPendingUpNext,
+		error: upNextError,
+	} = useQuery({
+		queryKey: bookKeys.byStatus("on_deck"),
+		queryFn: fetchUpNextBooks,
+	});
 
-			if (deckResult.error || currentResult.error) {
-				setError("Couldn't load the up next list. Please refresh.");
-				setIsLoading(false);
-				return;
+	const dateMutation = useMutation({
+		mutationFn: async ({
+			index,
+			newDate,
+		}: {
+			index: number;
+			newDate: Date;
+		}) => {
+			const updates = computeCascadeUpdates(books, index, newDate);
+			const results = await Promise.all(
+				updates.map(({ id, date }) => updateMeetingDate(id, date)),
+			);
+			if (results.some(Boolean)) {
+				throw new Error("Failed to save one or more dates. Please refresh.");
 			}
+		},
+		onMutate: ({ index, newDate }: { index: number; newDate: Date }) => {
+			const queryKey = bookKeys.byStatus("on_deck");
+			const previous = queryClient.getQueryData<Tables<"books">[]>(queryKey);
+			const updates = computeCascadeUpdates(books, index, newDate);
 
-			setBooks(deckResult.data ?? []);
+			queryClient.setQueryData<Tables<"books">[]>(queryKey, (old = []) =>
+				old.map((book) => {
+					const upd = updates.find((u) => u.id === book.id);
+					return upd
+						? { ...book, next_meeting_date: localISODate(upd.date) }
+						: book;
+				}),
+			);
 
-			// Use the currently reading book's meeting date as the cascade base.
-			// Fall back to app_settings.last_meeting_date + 14 (approximates the upcoming
-			// meeting for the currently reading book when it has no date stored yet).
-			let base: Date | null = null;
-			if (currentResult.data?.next_meeting_date) {
-				base = parseDateString(currentResult.data.next_meeting_date);
-			} else if (settingsResult.data?.last_meeting_date) {
-				base = addDays(
-					parseDateString(settingsResult.data.last_meeting_date),
-					14,
+			return { previous };
+		},
+		onError: (_err, _vars, context) => {
+			if (context?.previous) {
+				queryClient.setQueryData(
+					bookKeys.byStatus("on_deck"),
+					context.previous,
 				);
 			}
-			setCurrentlyReadingDate(base);
+		},
+	});
 
-			setIsLoading(false);
-		}
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	function handleRemove(_bookId: string) {
+		queryClient.invalidateQueries({ queryKey: bookKeys.byStatus("on_deck") });
+	}
 
-		fetch();
-	}, [refreshKey]);
+	if (isPendingCurrentlyReading || isPendingUpNext) return <BookCardSkeleton />;
 
-	async function handleDateChange(index: number, newDate: Date) {
-		// Cascade all books from `index` forward: index → newDate, index+1 → newDate+14, etc.
-		const updates: Array<{ id: string; date: Date }> = [];
-		let current = newDate;
-		for (let i = index; i < books.length; i++) {
-			updates.push({ id: books[i].id, date: current });
-			current = addDays(current, 14);
-		}
-
-		// Optimistic update
-		setBooks((prev) =>
-			prev.map((book) => {
-				const upd = updates.find((u) => u.id === book.id);
-				return upd
-					? { ...book, next_meeting_date: upd.date.toISOString() }
-					: book;
-			}),
+	if (currentlyReadingError)
+		return (
+			<p className="text-sm text-(--spooky-dust)">
+				{currentlyReadingError.message}
+			</p>
 		);
-
-		const results = await Promise.all(
-			updates.map(({ id, date }) => updateMeetingDate(id, date)),
+	if (upNextError)
+		return (
+			<p className="text-sm text-(--spooky-dust)">{upNextError.message}</p>
 		);
-		if (results.some(Boolean)) {
-			setError("Failed to save one or more dates. Please refresh.");
-		}
-	}
-
-	function handleRemove(bookId: string) {
-		setBooks((prev) => prev.filter((b) => b.id !== bookId));
-	}
-
-	function handleStatusChange(bookId: string) {
-		setBooks((prev) => prev.filter((b) => b.id !== bookId));
-		onStatusChange?.();
-	}
-
-	if (isLoading) return <BookCardSkeleton />;
-
-	if (error) return <p className="text-sm text-(--spooky-dust)">{error}</p>;
 
 	if (books.length === 0) {
 		return (
@@ -147,9 +169,10 @@ export function UpNextList({ userId, refreshKey, onStatusChange }: UpNextListPro
 					index={i}
 					userId={userId}
 					meetingDate={displayDates[i]}
-					onDateChange={(date) => handleDateChange(i, date)}
+					onDateChange={(date) =>
+						dateMutation.mutate({ index: i, newDate: date })
+					}
 					onRemove={handleRemove}
-					onStatusChange={handleStatusChange}
 				/>
 			))}
 		</div>

@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import type { Tables } from "@/lib/database.types";
 import {
 	Dialog,
 	DialogContent,
@@ -17,10 +16,8 @@ type ModalView = "search" | "preview";
 
 export function AddBookModal({
 	children,
-	onBookAdded,
 }: {
 	children: React.ReactNode;
-	onBookAdded?: (book: Tables<"books">) => void;
 }) {
 	const [view, setView] = useState<ModalView>("search");
 	const [selectedBook, setSelectedBook] = useState<GoogleBook | null>(null);
@@ -130,11 +127,7 @@ export function AddBookModal({
 						/>
 					)}
 					{view === "preview" && selectedBook && (
-						<BookPreview
-							book={selectedBook}
-							onBack={handleBack}
-							onBookAdded={onBookAdded}
-						/>
+						<BookPreview book={selectedBook} onBack={handleBack} />
 					)}
 				</div>
 			</DialogContent>

@@ -1,8 +1,19 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { BookWithStats } from "@/types/books";
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
+}
+
+export function sortTBR(a: BookWithStats, b: BookWithStats): number {
+	if (a.avgExcitement !== null && b.avgExcitement !== null) {
+		return b.avgExcitement - a.avgExcitement;
+	}
+	if (a.avgExcitement !== null) return -1;
+	if (b.avgExcitement !== null) return 1;
+	// Both unvoted: newest addition first
+	return (b.date_added ?? "").localeCompare(a.date_added ?? "");
 }
 
 /**
