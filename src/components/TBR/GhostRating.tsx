@@ -48,8 +48,14 @@ export function GhostRating({
 	}
 
 	const voteMutation = useMutation({
-		mutationFn: async (rating: number) => {
-			const shouldToggleOff = rating === localVote;
+		mutationFn: async ({
+			rating,
+			previousVote,
+		}: {
+			rating: number;
+			previousVote: number | null;
+		}) => {
+			const shouldToggleOff = rating === previousVote;
 
 			const { data: existing } = await supabase
 				.from("excitement_votes")
@@ -91,12 +97,11 @@ export function GhostRating({
 				newAvg: newAvg ?? null,
 			};
 		},
-		onMutate: (rating: number) => {
-			const previousVote = localVote;
-			setLocalVote(rating === localVote ? null : rating);
+		onMutate: ({ rating, previousVote }: { rating: number; previousVote: number | null }) => {
+			setLocalVote(rating === previousVote ? null : rating);
 			return { previousVote };
 		},
-		onError: (_err, _rating, context) => {
+		onError: (_err, _vars, context) => {
 			setLocalVote(context?.previousVote ?? null);
 		},
 		onSuccess: ({ newVote, newAvg }) => {
@@ -169,7 +174,9 @@ export function GhostRating({
 							key={value}
 							type="button"
 							disabled={voteMutation.isPending}
-							onClick={() => voteMutation.mutate(value)}
+							onClick={() =>
+								voteMutation.mutate({ rating: value, previousVote: localVote })
+							}
 							onMouseEnter={() => setHovered(value)}
 							aria-label={`Rate ${value} out of ${TOTAL}`}
 							className="text-lg leading-none transition-all duration-100 disabled:cursor-default select-none"
