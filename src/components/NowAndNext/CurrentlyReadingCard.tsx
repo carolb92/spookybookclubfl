@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
 import { BookDescription } from "@/components/common/BookDescription";
 import { CoverPlaceholder } from "@/components/TBR/CoverPlaceholder";
 import { BookCardSkeleton } from "@/components/common/BookCardSkeleton";
@@ -7,86 +5,64 @@ import { ActionButton } from "@/components/TBR/ActionButton";
 import { MeetingDatePicker } from "@/components/common/MeetingDatePicker";
 import { updateMeetingDate, cascadeOnDeckDates } from "@/services/bookActions";
 import { parseDateString, addDays, localISODate } from "@/lib/utils";
-import type { Tables } from "@/lib/database.types";
 import { getHighResCover } from "@/lib/utils";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { bookKeys } from "@/lib/queryKeys";
+import { useFetchCurrentlyReadingInfo } from "@/hooks/useFetchCurrentlyReadingInfo";
 
 interface CurrentlyReadingCardProps {
 	userId: string | null;
-	refreshKey?: number;
-	onDateChange?: () => void;
 }
 
-type AppSettings = Pick<
-	Tables<"app_settings">,
-	"meeting_link" | "last_meeting_date"
->;
+export default function CurrentlyReadingCard({
+	userId,
+}: CurrentlyReadingCardProps) {
+	const { data, isPending, error } = useFetchCurrentlyReadingInfo();
+	const book = data?.book;
+	const settings = data?.settings;
+	const queryKey = bookKeys.byStatus("currently_reading");
+	const queryClient = useQueryClient();
 
+	const dateMutation = useMutation({
+		mutationFn: async (newDate: Date) => {
+			if (!book) return;
+			const oldBase = book.next_meeting_date
+				? parseDateString(book.next_meeting_date)
+				: settings?.last_meeting_date
+					? addDays(parseDateString(settings.last_meeting_date), 14)
+					: null;
 
-export function CurrentlyReadingCard({ userId, refreshKey, onDateChange }: CurrentlyReadingCardProps) {
-	const [book, setBook] = useState<Tables<"books"> | null>(null);
-	const [settings, setSettings] = useState<AppSettings | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-
-	useEffect(() => {
-		async function fetch() {
-			setIsLoading(true);
-			setError(null);
-
-			const [bookResult, settingsResult] = await Promise.all([
-				supabase
-					.from("books")
-					.select("*")
-					.eq("status", "currently_reading")
-					.limit(1)
-					.maybeSingle(),
-				supabase
-					.from("app_settings")
-					.select("meeting_link, last_meeting_date")
-					.limit(1)
-					.maybeSingle(),
+			const [err1, err2] = await Promise.all([
+				updateMeetingDate(book.id, newDate),
+				cascadeOnDeckDates(oldBase, newDate),
 			]);
+			if (err1 || err2)
+				throw new Error("Couldn't update the meeting date. Try again.");
+		},
+		onMutate: (newDate: Date) => {
+			const previous = queryClient.getQueryData(queryKey);
+			queryClient.setQueryData(queryKey, (old: typeof data) =>
+				old?.book
+					? {
+							...old,
+							book: { ...old.book, next_meeting_date: localISODate(newDate) },
+						}
+					: old,
+			);
+			return { previous };
+		},
+		onError: (_err, _newDate, context) => {
+			if (context?.previous)
+				queryClient.setQueryData(queryKey, context.previous);
+		},
+		onSuccess: () =>
+			queryClient.invalidateQueries({ queryKey: bookKeys.byStatus("on_deck") }),
+	});
 
-			if (bookResult.error || settingsResult.error) {
-				setError("Couldn't load the current book. Please refresh.");
-				setIsLoading(false);
-				return;
-			}
-
-			setBook(bookResult.data);
-			setSettings(settingsResult.data);
-			setIsLoading(false);
-		}
-
-		fetch();
-	}, [refreshKey]);
-
-	async function handleDateChange(newDate: Date) {
-		if (!book) return;
-		const prevDate = book.next_meeting_date;
-		const oldBase = book.next_meeting_date
-			? parseDateString(book.next_meeting_date)
-			: settings?.last_meeting_date
-				? addDays(parseDateString(settings.last_meeting_date), 14)
-				: null;
-		setBook({ ...book, next_meeting_date: localISODate(newDate) });
-
-		const [err1, err2] = await Promise.all([
-			updateMeetingDate(book.id, newDate),
-			cascadeOnDeckDates(oldBase, newDate),
-		]);
-
-		if (err1 || err2) {
-			setBook((prev) => prev ? { ...prev, next_meeting_date: prevDate } : prev);
-		} else {
-			onDateChange?.();
-		}
-	}
-
-	if (isLoading) return <BookCardSkeleton tall />;
+	if (isPending) return <BookCardSkeleton tall />;
 
 	if (error) {
-		return <p className="text-sm text-(--spooky-dust)">{error}</p>;
+		return <p className="text-sm text-(--spooky-dust)">{error.message}</p>;
 	}
 
 	if (!book) {
@@ -143,7 +119,9 @@ export function CurrentlyReadingCard({ userId, refreshKey, onDateChange }: Curre
 					</h3>
 					<MeetingDatePicker
 						date={meetingDate}
-						onChange={userId ? handleDateChange : undefined}
+						onChange={
+							userId ? (newDate) => dateMutation.mutate(newDate) : undefined
+						}
 					/>
 					{userId && settings?.meeting_link && (
 						<div>

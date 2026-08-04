@@ -19,7 +19,7 @@ export function TBRBookActionsPanel({
 	onDelete,
 	onStatusChange,
 }: TBRBookActionsPanelProps) {
-	const flow = useCurrentlyReadingFlow(book.id, () => onStatusChange(book.id));
+	const flow = useCurrentlyReadingFlow(book.id);
 
 	const addToUpNextMutation = useMutation({
 		mutationFn: async () => {

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
 	Dialog,
 	DialogContent,
@@ -15,6 +16,7 @@ import { MeetingDatePicker } from "@/components/common/MeetingDatePicker";
 import { CurrentlyReadingDialog } from "@/components/common/CurrentlyReadingDialog";
 import { useCurrentlyReadingFlow } from "@/hooks/useCurrentlyReadingFlow";
 import { markAsTBR } from "@/services/bookActions";
+import { bookKeys } from "@/lib/queryKeys";
 import type { Tables } from "@/lib/database.types";
 
 interface UpNextCardProps {
@@ -24,7 +26,6 @@ interface UpNextCardProps {
 	meetingDate: Date | null;
 	onDateChange: (date: Date) => void;
 	onRemove: (bookId: string) => void;
-	onStatusChange: (bookId: string) => void;
 }
 
 export function UpNextCard({
@@ -34,25 +35,22 @@ export function UpNextCard({
 	meetingDate,
 	onDateChange,
 	onRemove,
-	onStatusChange,
 }: UpNextCardProps) {
-	const flow = useCurrentlyReadingFlow(book.id, () => onStatusChange(book.id));
+	const queryClient = useQueryClient();
+	const flow = useCurrentlyReadingFlow(book.id);
 	const [confirmTBROpen, setConfirmTBROpen] = useState(false);
-	const [isMovingToTBR, setIsMovingToTBR] = useState(false);
-	const [tbrError, setTbrError] = useState<string | null>(null);
 
-	async function handleConfirmTBR() {
-		setIsMovingToTBR(true);
-		setTbrError(null);
-		const err = await markAsTBR(book.id);
-		setIsMovingToTBR(false);
-		if (err) {
-			setTbrError(err);
-			return;
-		}
-		setConfirmTBROpen(false);
-		onStatusChange(book.id);
-	}
+	const tbrMutation = useMutation({
+		mutationFn: async () => {
+			const err = await markAsTBR(book.id);
+			if (err) throw new Error(err);
+		},
+		onSuccess: () => {
+			setConfirmTBROpen(false);
+			queryClient.invalidateQueries({ queryKey: bookKeys.byStatus("tbr") });
+			queryClient.invalidateQueries({ queryKey: bookKeys.byStatus("on_deck") });
+		},
+	});
 
 	return (
 		<div className="relative flex gap-4 p-4 border border-(--spooky-border) bg-(--spooky-surface)/40 rounded-sm overflow-hidden max-sm:flex-col max-sm:items-center">
@@ -144,10 +142,8 @@ export function UpNextCard({
 			<Dialog
 				open={confirmTBROpen}
 				onOpenChange={(next) => {
-					if (!next) {
-						setConfirmTBROpen(false);
-						setTbrError(null);
-					}
+					setConfirmTBROpen(next);
+					if (!next) tbrMutation.reset();
 				}}
 			>
 				<DialogContent className="max-w-sm border-(--spooky-border) bg-(--spooky-surface) text-(--spooky-parchment) shadow-2xl shadow-black/70">
@@ -162,19 +158,26 @@ export function UpNextCard({
 							will be moved back to your TBR list.
 						</DialogDescription>
 					</DialogHeader>
-					{tbrError && <p className="text-xs text-red-400/80">{tbrError}</p>}
+					{tbrMutation.error && (
+						<p className="text-xs text-red-400/80">
+							{tbrMutation.error.message}
+						</p>
+					)}
 					<div className="flex flex-col gap-2">
 						<Button
-							onClick={handleConfirmTBR}
-							disabled={isMovingToTBR}
+							onClick={() => tbrMutation.mutate()}
+							disabled={tbrMutation.isPending}
 							className="bg-(--spooky-crimson) hover:bg-(--spooky-crimson)/80 text-(--spooky-parchment) border border-(--spooky-crimson)/60 transition-all duration-150 disabled:opacity-50"
 						>
-							{isMovingToTBR ? "Saving…" : "Yup"}
+							{tbrMutation.isPending ? "Saving…" : "Yup"}
 						</Button>
 						<Button
 							variant="outline"
-							onClick={() => { setConfirmTBROpen(false); setTbrError(null); }}
-							disabled={isMovingToTBR}
+							onClick={() => {
+								setConfirmTBROpen(false);
+								tbrMutation.reset();
+							}}
+							disabled={tbrMutation.isPending}
 							className="text-(--spooky-dust) hover:text-(--spooky-parchment) hover:bg-(--spooky-border)/40"
 						>
 							Cancel

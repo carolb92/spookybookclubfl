@@ -12,58 +12,68 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import type { Tables } from "@/lib/database.types";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { bookKeys } from "@/lib/queryKeys";
 
-type SelectedBook = Pick<Tables<"books">, "id" | "title" | "author" | "cover_url" | "page_count">;
+type SelectedBook = Pick<
+	Tables<"books">,
+	"id" | "title" | "author" | "cover_url" | "page_count"
+>;
 
 interface SummonButtonProps {
 	userId: string | null;
-	onConfirm: () => void;
 }
 
-export function SummonButton({ userId, onConfirm }: SummonButtonProps) {
+async function pickRandomTBRBook(): Promise<SelectedBook> {
+	const { data: books, error } = await supabase
+		.from("books")
+		.select("id, title, author, cover_url, page_count")
+		.eq("status", "tbr");
+
+	if (error) {
+		throw new Error("Something went wrong. Please try again.");
+	}
+	if (!books || books.length === 0) {
+		throw new Error("No books in the TBR pile.");
+	}
+
+	const bookIds = books.map((b) => b.id);
+	const weights = await fetchExcitementWeights(bookIds);
+	return pickWeighted(books, (b) => weights.get(b.id) ?? 1.0);
+}
+
+export function SummonButton({ userId }: SummonButtonProps) {
 	const [open, setOpen] = useState(false);
-	const [isLoading, setIsLoading] = useState(false);
-	const [isConfirming, setIsConfirming] = useState(false);
-	const [selectedBook, setSelectedBook] = useState<SelectedBook | null>(null);
-	const [fetchError, setFetchError] = useState<string | null>(null);
+	const queryClient = useQueryClient();
+
+	const pickMutation = useMutation({
+		mutationFn: pickRandomTBRBook,
+	});
+
+	const confirmMutation = useMutation({
+		mutationFn: async (bookId: string) => {
+			const err = await markAsOnDeck(bookId);
+			if (err) throw new Error(err);
+		},
+		onSuccess: () => {
+			setOpen(false);
+			queryClient.invalidateQueries({ queryKey: bookKeys.byStatus("on_deck") });
+		},
+	});
 
 	if (!userId) return null;
 
-	async function handleOpenChange(nextOpen: boolean) {
+	function handleOpenChange(nextOpen: boolean) {
 		setOpen(nextOpen);
-		if (!nextOpen) return;
-
-		setSelectedBook(null);
-		setFetchError(null);
-		setIsLoading(true);
-
-		const { data: books, error } = await supabase
-			.from("books")
-			.select("id, title, author, cover_url, page_count")
-			.eq("status", "tbr");
-
-		if (error) {
-			setFetchError("Something went wrong. Please try again.");
-		} else if (!books || books.length === 0) {
-			setFetchError("No books in the TBR pile.");
+		if (nextOpen) {
+			pickMutation.mutate();
 		} else {
-			const bookIds = books.map((b) => b.id);
-			const weights = await fetchExcitementWeights(bookIds);
-			const selected = pickWeighted(books, (b) => weights.get(b.id) ?? 1.0);
-			setSelectedBook(selected);
+			pickMutation.reset();
+			confirmMutation.reset();
 		}
-
-		setIsLoading(false);
 	}
 
-	async function handleConfirm() {
-		if (!selectedBook) return;
-		setIsConfirming(true);
-		await markAsOnDeck(selectedBook.id);
-		setIsConfirming(false);
-		setOpen(false);
-		onConfirm();
-	}
+	const selectedBook = pickMutation.data;
 
 	return (
 		<>
@@ -81,7 +91,7 @@ export function SummonButton({ userId, onConfirm }: SummonButtonProps) {
 				</DialogTrigger>
 
 				<DialogContent className="bg-(--spooky-card) border border-(--spooky-border) text-(--spooky-parchment) max-w-sm [&>button]:text-(--spooky-dust)">
-					{isLoading ? (
+					{pickMutation.isPending ? (
 						<div className="flex flex-col items-center justify-center gap-3 py-12">
 							<Loader2
 								size={24}
@@ -91,9 +101,11 @@ export function SummonButton({ userId, onConfirm }: SummonButtonProps) {
 								Chaos Reigns
 							</span>
 						</div>
-					) : fetchError ? (
+					) : pickMutation.error ? (
 						<div className="flex items-center justify-center py-12">
-							<p className="text-sm text-(--spooky-dust) text-center">{fetchError}</p>
+							<p className="text-sm text-(--spooky-dust) text-center">
+								{pickMutation.error.message}
+							</p>
 						</div>
 					) : selectedBook ? (
 						<>
@@ -136,10 +148,10 @@ export function SummonButton({ userId, onConfirm }: SummonButtonProps) {
 							<div className="-mx-4 -mb-4 p-4 border-t border-(--spooky-border)">
 								<button
 									className="summon-button w-full flex items-center justify-center py-3 font-display text-sm tracking-wide rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-									onClick={handleConfirm}
-									disabled={isConfirming}
+									onClick={() => confirmMutation.mutate(selectedBook.id)}
+									disabled={confirmMutation.isPending}
 								>
-									{isConfirming ? (
+									{confirmMutation.isPending ? (
 										<Loader2 size={14} className="animate-spin" />
 									) : (
 										"The fates have chosen"
